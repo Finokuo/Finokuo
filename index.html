@@ -1,2604 +1,842 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>豆沙包 IDE — 浏览器网页版代码编辑器</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0e14'/%3E%3Cpath d='M9 11l7 5-7 5' fill='none' stroke='%234cc2ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 22h6' fill='none' stroke='%234cc2ff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.min.css">
-<style>
-/* ===== 主题变量（配色方案：vscode 默认 / matrix / vstudio） ===== */
-:root{ /* VS Code Dark+ 界面 */
-  --bg0:#1e1e1e; --bg1:#252526; --bg2:#2d2d30; --bg3:#333333; --bg4:#3c3c3c;
-  --border:#3c3c3c; --border-soft:#333333;
-  --text:#d4d4d4; --text-dim:#9d9d9d; --text-faint:#6e6e6e;
-  --accent:#007acc; --accent-strong:#0e639c; --accent-ink:#ffffff;
-  --ok:#4ec9b0; --warn:#cca700; --err:#f48771;
-  --shadow:0 6px 24px rgba(0,0,0,.45);
-  --editor-font:'Consolas','Courier New',ui-monospace,monospace;
-  --hint-size:13px;
-}
-[data-theme="light"]{ /* VS Code Light+ 界面 */
-  --bg0:#ffffff; --bg1:#f3f3f3; --bg2:#ececec; --bg3:#e1e1e1; --bg4:#d0d0d0;
-  --border:#d4d4d4; --border-soft:#e6e6e6;
-  --text:#333333; --text-dim:#666666; --text-faint:#999999;
-  --accent:#007acc; --accent-strong:#005fb8; --accent-ink:#ffffff;
-  --ok:#267f99; --warn:#9a6700; --err:#cd3131;
-  --shadow:0 6px 24px rgba(140,149,159,.35);
-}
-[data-palette="matrix"]{ /* Matrix 黑客绿（恒深色） */
-  --bg0:#000000; --bg1:#030803; --bg2:#071007; --bg3:#0b160b; --bg4:#122312;
-  --border:#0f3d0f; --border-soft:#0a2a0a;
-  --text:#c8ffc8; --text-dim:#5fbf5f; --text-faint:#3f7f3f;
-  --accent:#00ff41; --accent-strong:#00cc34; --accent-ink:#001400;
-  --ok:#00ff41; --warn:#e6c300; --err:#ff5555;
-  --shadow:0 0 24px rgba(0,255,65,.25);
-}
-[data-palette="vstudio"]{ /* Visual Studio 经典（恒浅色） */
-  --bg0:#dedede; --bg1:#f5f5f5; --bg2:#ececec; --bg3:#e0e0e0; --bg4:#cccccc;
-  --border:#d0d0d0; --border-soft:#e0e0e0;
-  --text:#1e1e1e; --text-dim:#505050; --text-faint:#888888;
-  --accent:#0078d4; --accent-strong:#005a9e; --accent-ink:#ffffff;
-  --ok:#107c10; --warn:#8a6d3b; --err:#e51400;
-  --shadow:0 6px 24px rgba(120,120,120,.35);
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-  background:var(--bg0);color:var(--text);font-size:13px;
-}
-button{font-family:inherit;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px}
-button:hover{color:var(--text)}
-button:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
-::selection{background:rgba(76,194,255,.28)}
-
-/* ===== 整体布局 ===== */
-#app{display:flex;flex-direction:column;height:100%}
-#main{display:flex;flex:1;min-height:0}
-
-/* ===== 顶部标题栏 ===== */
-#titlebar{
-  height:38px;flex:0 0 38px;display:flex;align-items:center;justify-content:space-between;
-  background:var(--bg1);border-bottom:1px solid var(--border);padding:0 10px;gap:8px;
-}
-.tb-left{display:flex;align-items:center;gap:8px;min-width:0}
-.tb-logo{width:20px;height:20px;flex:0 0 20px}
-.app-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap}
-.tb-sep{width:1px;height:16px;background:var(--border)}
-#breadcrumb{color:var(--text-dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tb-right{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-.tb-btn{
-  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:5px;
-  border:1px solid var(--border);background:var(--bg2);color:var(--text-dim);font-size:12px;
-}
-.tb-btn:hover{color:var(--text);border-color:var(--bg4)}
-.tb-btn svg{width:14px;height:14px}
-#btn-run{
-  background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600;padding:4px 14px;
-}
-#btn-run:hover{background:var(--accent-strong);color:var(--accent-ink)}
-#btn-run svg{width:11px;height:11px}
-
-/* ===== 活动栏（最左侧图标栏） ===== */
-#activitybar{
-  width:46px;flex:0 0 46px;background:var(--bg1);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;align-items:center;padding:6px 0 8px;gap:2px;min-height:0;
-}
-.ab-btn{
-  width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;
-  color:var(--text-dim);position:relative;
-}
-.ab-btn svg{width:20px;height:20px}
-.ab-btn:hover{background:var(--bg2);color:var(--text)}
-.ab-btn.active{color:var(--text);border-left:2px solid var(--accent);border-radius:6px 0 0 6px}
-.ab-spacer{flex:1}
-.ab-btn .ab-badge{
-  position:absolute;right:3px;bottom:3px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;
-  background:var(--accent);color:var(--accent-ink);font-size:9px;line-height:14px;text-align:center;
-}
-/* ===== 侧栏 ===== */
-#sidebar{
-  width:232px;flex:0 0 232px;background:var(--bg1);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;min-height:0;position:relative;
-}
-#app.side-collapsed #sidebar{display:none}
-.side-view{display:none;flex-direction:column;flex:1;min-height:0}
-.side-view.show{display:flex}
-.side-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-size:11px;letter-spacing:.08em;color:var(--text-faint)}
-.side-actions{display:flex;gap:2px}
-.side-actions button{padding:3px;border-radius:4px;display:inline-flex}
-.side-actions button:hover{background:var(--bg3);color:var(--text)}
-.side-actions svg{width:14px;height:14px}
-.side-search{padding:0 8px 6px}
-.side-search input{
-  width:100%;padding:5px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);
-  color:var(--text);font-size:12px;outline:none;
-}
-.side-search input:focus{border-color:var(--accent)}
-#tree{flex:1;overflow:auto;padding:2px 0 12px;min-height:0}
-#tree::-webkit-scrollbar,.pv-bar{scrollbar-width:thin}
-/* 树节点 */
-.tree-node{user-select:none}
-.tree-row{
-  display:flex;align-items:center;gap:5px;padding:3px 8px 3px 6px;height:26px;cursor:pointer;
-  color:var(--text-dim);white-space:nowrap;position:relative;
-}
-.tree-row:hover{background:var(--bg2);color:var(--text)}
-.tree-row.active{background:rgba(76,194,255,.13);color:var(--text)}
-[data-theme="light"] .tree-row.active{background:rgba(9,105,218,.10)}
-.tree-row svg{width:15px;height:15px;flex:0 0 15px}
-.tree-chevron{width:14px;height:14px;flex:0 0 14px;transition:transform .12s}
-.tree-chevron.open{transform:rotate(90deg)}
-.tree-chevron.blank{visibility:hidden}
-.tree-name{overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
-.tree-file{color:var(--text-dim)}
-.tree-file.active{color:var(--text)}
-.tree-dirty{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 7px}
-.tree-empty{padding:16px 12px;color:var(--text-faint);font-size:12px;line-height:1.7}
-
-/* ===== 工作台 ===== */
-#workbench{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg0)}
-#tabbar{display:flex;align-items:stretch;background:var(--bg1);border-bottom:1px solid var(--border);height:34px;overflow-x:auto;scrollbar-width:none}
-#tabbar::-webkit-scrollbar{display:none}
-.tab{
-  display:inline-flex;align-items:center;gap:6px;padding:0 10px;max-width:180px;min-width:80px;
-  border-right:1px solid var(--border);color:var(--text-dim);font-size:12.5px;cursor:pointer;position:relative;
-}
-.tab .tab-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tab .tab-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 7px;display:none}
-.tab.dirty .tab-dot{display:block}
-.tab.active{background:var(--bg0);color:var(--text);box-shadow:inset 0 2px 0 var(--accent)}
-[data-theme="light"] .tab.active{background:var(--bg1)}
-.tab .tab-close{padding:2px;border-radius:3px;display:inline-flex;flex:0 0 14px}
-.tab .tab-close:hover{background:var(--bg3);color:var(--text)}
-.tab .tab-close svg{width:11px;height:11px}
-#editor-area{flex:1;min-height:0;position:relative}
-#cm-host{position:absolute;inset:0}
-#cm-host .CodeMirror{height:100%;background:var(--bg0);color:var(--text);font-size:14px}
-#cm-host .CodeMirror-gutters{background:var(--bg0);border-right:1px solid var(--border-soft)}
-#cm-host .CodeMirror-linenumber{color:var(--text-faint)}
-#cm-host .CodeMirror-cursor{border-left:2px solid var(--accent)}
-#cm-host .CodeMirror-selected{background:rgba(76,194,255,.18)}
-#cm-host .CodeMirror-activeline-background{background:rgba(255,255,255,.035)}
-#cm-host .CodeMirror-matchingbracket{color:var(--accent);outline:1px solid var(--accent)}
-#editor-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-faint)}
-#editor-empty svg{width:52px;height:52px;opacity:.5}
-#editor-empty p{font-size:13px}
-/* 语法高亮 token（VS Code Dark+ 配色） */
-.cm-s-ide .cm-keyword{color:#C586C0}
-.cm-s-ide .cm-type{color:#4EC9B0}
-.cm-s-ide .cm-atom{color:#569CD6}
-.cm-s-ide .cm-number{color:#B5CEA8}
-.cm-s-ide .cm-def{color:#4EC9B0}
-.cm-s-ide .cm-variable{color:var(--text)}
-.cm-s-ide .cm-variable-2{color:#9CDCFE}
-.cm-s-ide .cm-property{color:#9CDCFE}
-.cm-s-ide .cm-string{color:#CE9178}
-.cm-s-ide .cm-string-2{color:#CE9178}
-.cm-s-ide .cm-comment{color:#6A9955;font-style:italic}
-.cm-s-ide .cm-tag{color:#569CD6}
-.cm-s-ide .cm-attribute{color:#9CDCFE}
-.cm-s-ide .cm-qualifier{color:#569CD6}
-.cm-s-ide .cm-builtin{color:#4EC9B0}
-.cm-s-ide .cm-meta{color:#569CD6}
-.cm-s-ide .cm-operator{color:#D4D4D4}
-.cm-s-ide .cm-header{color:#569CD6;font-weight:600}
-.cm-s-ide .cm-link{color:#569CD6}
-.cm-s-ide .cm-bracket{color:#D4D4D4}
-.cm-s-ide .cm-error{color:#F44747}
-/* 浅色主题（VS Code Light+ 配色） */
-[data-theme="light"] .cm-s-ide .cm-keyword{color:#AF00DB}
-[data-theme="light"] .cm-s-ide .cm-type{color:#267F99}
-[data-theme="light"] .cm-s-ide .cm-atom{color:#267F99}
-[data-theme="light"] .cm-s-ide .cm-number{color:#098658}
-[data-theme="light"] .cm-s-ide .cm-def{color:#267F99}
-[data-theme="light"] .cm-s-ide .cm-variable-2{color:#001080}
-[data-theme="light"] .cm-s-ide .cm-property{color:#0451A5}
-[data-theme="light"] .cm-s-ide .cm-string{color:#A31515}
-[data-theme="light"] .cm-s-ide .cm-string-2{color:#A31515}
-[data-theme="light"] .cm-s-ide .cm-comment{color:#008000}
-[data-theme="light"] .cm-s-ide .cm-tag{color:#800000}
-[data-theme="light"] .cm-s-ide .cm-attribute{color:#E50000}
-[data-theme="light"] .cm-s-ide .cm-qualifier{color:#800000}
-[data-theme="light"] .cm-s-ide .cm-builtin{color:#267F99}
-[data-theme="light"] .cm-s-ide .cm-meta{color:#800000}
-[data-theme="light"] .cm-s-ide .cm-operator{color:#383A42}
-[data-theme="light"] .cm-s-ide .cm-bracket{color:#383A42}
-[data-theme="light"] .cm-s-ide .cm-error{color:#CD3131}
-/* Matrix token（绿） */
-[data-palette="matrix"] .cm-s-ide .cm-keyword{color:#00ff41}
-[data-palette="matrix"] .cm-s-ide .cm-type{color:#3dffa0}
-[data-palette="matrix"] .cm-s-ide .cm-atom{color:#7dff7d}
-[data-palette="matrix"] .cm-s-ide .cm-number{color:#a5ff90}
-[data-palette="matrix"] .cm-s-ide .cm-def{color:#00ff9d}
-[data-palette="matrix"] .cm-s-ide .cm-variable{color:#d8ffd8}
-[data-palette="matrix"] .cm-s-ide .cm-variable-2{color:#80ff80}
-[data-palette="matrix"] .cm-s-ide .cm-property{color:#4dff88}
-[data-palette="matrix"] .cm-s-ide .cm-string{color:#b3ff8f}
-[data-palette="matrix"] .cm-s-ide .cm-string-2{color:#b3ff8f}
-[data-palette="matrix"] .cm-s-ide .cm-comment{color:#4d7c4d}
-[data-palette="matrix"] .cm-s-ide .cm-tag{color:#00e676}
-[data-palette="matrix"] .cm-s-ide .cm-attribute{color:#7dff7d}
-[data-palette="matrix"] .cm-s-ide .cm-qualifier{color:#00ff41}
-[data-palette="matrix"] .cm-s-ide .cm-builtin{color:#00ff9d}
-[data-palette="matrix"] .cm-s-ide .cm-meta{color:#5cff5c}
-[data-palette="matrix"] .cm-s-ide .cm-operator{color:#9fff9f}
-[data-palette="matrix"] .cm-s-ide .cm-header{color:#00ff41}
-[data-palette="matrix"] .cm-s-ide .cm-link{color:#7dff7d}
-[data-palette="matrix"] .cm-s-ide .cm-bracket{color:#9fff9f}
-[data-palette="matrix"] .cm-s-ide .cm-error{color:#ff5555}
-/* Visual Studio 经典 token */
-[data-palette="vstudio"] .cm-s-ide .cm-keyword{color:#0000ff}
-[data-palette="vstudio"] .cm-s-ide .cm-type{color:#2b91af}
-[data-palette="vstudio"] .cm-s-ide .cm-atom{color:#0000ff}
-[data-palette="vstudio"] .cm-s-ide .cm-number{color:#098658}
-[data-palette="vstudio"] .cm-s-ide .cm-def{color:#795e26}
-[data-palette="vstudio"] .cm-s-ide .cm-variable{color:#1e1e1e}
-[data-palette="vstudio"] .cm-s-ide .cm-variable-2{color:#0000ff}
-[data-palette="vstudio"] .cm-s-ide .cm-property{color:#795e26}
-[data-palette="vstudio"] .cm-s-ide .cm-string{color:#a31515}
-[data-palette="vstudio"] .cm-s-ide .cm-string-2{color:#a31515}
-[data-palette="vstudio"] .cm-s-ide .cm-comment{color:#008000}
-[data-palette="vstudio"] .cm-s-ide .cm-tag{color:#800000}
-[data-palette="vstudio"] .cm-s-ide .cm-attribute{color:#ff0000}
-[data-palette="vstudio"] .cm-s-ide .cm-qualifier{color:#0000ff}
-[data-palette="vstudio"] .cm-s-ide .cm-builtin{color:#795e26}
-[data-palette="vstudio"] .cm-s-ide .cm-meta{color:#800000}
-[data-palette="vstudio"] .cm-s-ide .cm-operator{color:#1e1e1e}
-[data-palette="vstudio"] .cm-s-ide .cm-header{color:#800000}
-[data-palette="vstudio"] .cm-s-ide .cm-link{color:#0000ff}
-[data-palette="vstudio"] .cm-s-ide .cm-bracket{color:#1e1e1e}
-[data-palette="vstudio"] .cm-s-ide .cm-error{color:#e51400}
-/* 提示弹窗字体大小 */
-.CodeMirror-hints{font-size:var(--hint-size,13px);font-family:var(--editor-font),monospace}
-.CodeMirror pre.CodeMirror-line, .CodeMirror pre.CodeMirror-line-like{font-family:var(--editor-font),monospace}
-
-/* ===== 预览分栏 ===== */
-#preview{
-  flex:0 0 46%;max-width:52%;border-left:1px solid var(--border);background:var(--bg1);
-  display:flex;flex-direction:column;min-width:0;
-}
-#preview[hidden]{display:none}
-.pv-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-dim)}
-.pv-bar button{padding:2px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px}
-.pv-bar button:hover{background:var(--bg3);color:var(--text)}
-.pv-bar svg{width:12px;height:12px}
-#pv-frame{flex:1;border:none;background:#fff;width:100%}
-
-/* ===== 底部状态栏 ===== */
-#statusbar{
-  height:24px;flex:0 0 24px;display:flex;align-items:center;gap:12px;padding:0 10px;
-  background:var(--accent-strong);color:var(--accent-ink);font-size:11.5px;
-}
-[data-theme="light"] #statusbar{background:var(--accent-strong);color:#fff}
-#statusbar .spacer{flex:1}
-#statusbar button{padding:1px 5px;border-radius:3px;color:var(--accent-ink);opacity:.85}
-#statusbar button:hover{opacity:1;background:rgba(255,255,255,.18)}
-#statusbar svg{width:12px;height:12px}
-
-/* ===== 底部输出面板 ===== */
-#panel{
-  flex:0 0 168px;background:var(--bg1);border-top:1px solid var(--border);display:flex;flex-direction:column;min-height:0;
-}
-#app.panel-collapsed #panel{display:none}
-.panel-head{display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:28px;border-bottom:1px solid var(--border)}
-.panel-head .ptab{font-size:11px;letter-spacing:.08em;color:var(--text-faint);padding:4px 2px;border-bottom:2px solid transparent}
-.panel-head .ptab.active{color:var(--text);border-bottom-color:var(--accent)}
-.panel-actions{display:flex;gap:4px}
-.panel-actions button{padding:2px 8px;border-radius:4px;font-size:12px;color:var(--text-dim)}
-.panel-actions button:hover{background:var(--bg3);color:var(--text)}
-#output{flex:1;overflow:auto;padding:8px 12px;font-family:ui-monospace,"Cascadia Code",Consolas,"JetBrains Mono",monospace;font-size:12.5px;line-height:1.65;white-space:pre-wrap;word-break:break-word;min-height:0}
-#output::-webkit-scrollbar{width:10px}
-#output::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:5px}
-.out-line{display:flex;gap:8px;align-items:baseline}
-.out-time{color:var(--text-faint);flex:0 0 auto;font-size:11px}
-.out-msg{flex:1}
-.out-system{color:var(--text-dim)}
-.out-info{color:var(--accent)}
-.out-ok{color:var(--ok)}
-.out-warn{color:var(--warn)}
-.out-err{color:var(--err)}
-
-/* ===== 右键菜单 ===== */
-#ctx-menu{
-  position:fixed;z-index:100;min-width:150px;background:var(--bg2);border:1px solid var(--border);
-  border-radius:6px;box-shadow:var(--shadow);padding:4px;display:none;
-}
-#ctx-menu.show{display:block}
-.ctx-item{padding:5px 10px;border-radius:4px;font-size:12.5px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px}
-.ctx-item:hover{background:var(--accent);color:var(--accent-ink)}
-.ctx-item.danger:hover{background:var(--err);color:#fff}
-.ctx-item svg{width:13px;height:13px}
-.ctx-sep{height:1px;background:var(--border);margin:4px 6px}
-
-/* ===== 弹窗 ===== */
-#modal{
-  position:fixed;inset:0;z-index:200;background:rgba(5,8,14,.6);display:none;align-items:center;justify-content:center;
-}
-#modal.show{display:flex}
-.modal-box{
-  width:340px;max-width:90vw;background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-  box-shadow:var(--shadow);padding:16px;
-}
-.modal-title{font-size:14px;font-weight:600;margin-bottom:10px}
-.modal-msg{font-size:12.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6}
-.modal-box input{
-  width:100%;padding:7px 9px;border-radius:6px;border:1px solid var(--border);background:var(--bg0);
-  color:var(--text);font-size:13px;outline:none;margin-bottom:14px;
-}
-.modal-box input:focus{border-color:var(--accent)}
-.modal-actions{display:flex;justify-content:flex-end;gap:8px}
-.modal-actions button{padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text)}
-.modal-actions button:hover{border-color:var(--bg4)}
-.modal-actions .primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
-
-/* ===== Toast ===== */
-#toast{
-  position:fixed;bottom:52px;left:50%;transform:translateX(-50%) translateY(12px);z-index:300;
-  background:var(--bg3);color:var(--text);border:1px solid var(--border);border-left:3px solid var(--accent);
-  border-radius:8px;padding:11px 20px;font-size:14px;line-height:1.5;box-shadow:var(--shadow);
-  opacity:0;transition:all .18s;pointer-events:none;max-width:82vw;text-align:center;
-}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-/* ===== 自动补全提示 ===== */
-#app .CodeMirror-hints{
-  z-index:120;background:var(--bg3);border:1px solid var(--border);border-radius:6px;
-  box-shadow:var(--shadow);font-family:ui-monospace,Consolas,monospace;font-size:13px;
-  padding:4px;max-height:240px;overflow-y:auto;
-}
-#app .CodeMirror-hint{color:var(--text-dim);padding:2px 10px;border-radius:4px;cursor:pointer}
-#app li.CodeMirror-hint-active{background:var(--accent);color:var(--accent-ink)}
-/* ===== 语言选择菜单 ===== */
-#lang-menu{
-  position:fixed;z-index:110;min-width:150px;background:var(--bg2);border:1px solid var(--border);
-  border-radius:6px;box-shadow:var(--shadow);padding:4px;display:none;max-height:260px;overflow-y:auto;
-}
-#lang-menu.show{display:block}
-.lang-item{padding:5px 10px;border-radius:4px;font-size:12.5px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px}
-.lang-item:hover{background:var(--bg3)}
-.lang-item.active{color:var(--accent);font-weight:600}
-#st-lang{cursor:pointer;text-decoration:underline dotted}
-/* ===== 设置面板 ===== */
-#settings{
-  position:fixed;inset:0;z-index:220;background:rgba(5,8,14,.62);display:none;align-items:center;justify-content:center;
-}
-#settings.show{display:flex}
-.settings-box{
-  width:min(720px,92vw);background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-  box-shadow:var(--shadow);overflow:hidden;
-}
-.settings-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600}
-.settings-head button{padding:3px;border-radius:5px;display:inline-flex}
-.settings-head button:hover{background:var(--bg3);color:var(--text)}
-.settings-head svg{width:14px;height:14px}
-.settings-body{padding:6px 20px 18px;max-height:78vh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;column-gap:30px;row-gap:2px}
-.set-title{font-size:11px;letter-spacing:.08em;color:var(--text-faint);margin:14px 0 4px;padding-top:8px;border-top:1px solid var(--border-soft);grid-column:1/-1}
-.set-title:first-child{border-top:none;margin-top:8px}
-.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;font-size:13px}
-.set-label{color:var(--text);flex:0 0 auto}
-.set-control{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.set-control input[type="number"]{
-  width:66px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg0);
-  color:var(--text);font-size:13px;outline:none;
-}
-.set-control input[type="number"]:focus{border-color:var(--accent)}
-.set-control button{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text)}
-.set-control button:hover{border-color:var(--bg4)}
-.set-unit{color:var(--text-faint);font-size:12px}
-.set-theme{display:flex;gap:8px}
-.set-theme label{
-  display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
-  border:1px solid var(--border);cursor:pointer;font-size:12.5px;color:var(--text-dim);
-}
-.set-theme label:has(input:checked){border-color:var(--accent);color:var(--accent);font-weight:600}
-.set-theme input{accent-color:var(--accent)}
-.set-theme{flex-wrap:wrap}
-.set-theme.set-palette label{padding:3px 8px;font-size:12px}
-.set-control select{
-  padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);
-  color:var(--text);font-size:12.5px;outline:none;max-width:190px;
-}
-.set-control select:focus{border-color:var(--accent)}
-.set-btn{
-  padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);
-  color:var(--text);font-size:12.5px;
-}
-.set-btn:hover{border-color:var(--accent);color:var(--accent)}
-/* 配色自定义 */
-#btn-custom-palette{margin-top:2px}
-#custom-palette{
-  position:fixed;inset:0;z-index:230;background:rgba(5,8,14,.62);display:none;align-items:center;justify-content:center;
-}
-#custom-palette.show{display:flex}
-.cp-box{width:min(480px,92vw);background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
-.cp-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600}
-.cp-head button{padding:3px;border-radius:5px;display:inline-flex}
-.cp-head button:hover{background:var(--bg3);color:var(--text)}
-.cp-head svg{width:14px;height:14px}
-.cp-body{padding:14px 18px;max-height:72vh;overflow:auto}
-.cp-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:13px;border-bottom:1px dashed var(--border-soft)}
-.cp-row .cp-name{color:var(--text)}
-.cp-row .cp-ctrl{display:flex;align-items:center;gap:8px}
-.cp-row input[type="color"]{width:34px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--bg0);padding:2px;cursor:pointer}
-.cp-row .cp-hex{font-family:Consolas,monospace;font-size:12px;color:var(--text-dim);min-width:74px}
-.cp-hint{font-size:12px;color:var(--text-faint);margin:6px 0 10px;line-height:1.6}
-.cp-actions{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--border)}
-.cp-actions button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:13px}
-.cp-actions button:hover{border-color:var(--accent);color:var(--accent)}
-.cp-actions .primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
-.cp-actions .primary:hover{background:var(--accent-strong);color:var(--accent-ink)}
-/* 空状态按钮 */
-.empty-actions{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;justify-content:center}
-.empty-actions button{
-  display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;
-  border:1px solid var(--border);background:var(--bg2);color:var(--text-dim);font-size:13px;
-}
-.empty-actions button:hover{border-color:var(--accent);color:var(--accent)}
-.empty-actions button svg{width:14px;height:14px}
-.empty-actions .primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
-.empty-actions .primary:hover{background:var(--accent-strong);color:var(--accent-ink)}
-/* 搜索视图 */
-.sr-input{padding:0 8px 6px}
-.sr-input input{
-  width:100%;padding:5px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);
-  color:var(--text);font-size:12px;outline:none;
-}
-.sr-input input:focus{border-color:var(--accent)}
-#search-results{flex:1;overflow:auto;padding:2px 6px 12px;min-height:0}
-.sr-group{font-size:11px;color:var(--text-faint);padding:8px 6px 3px;letter-spacing:.05em}
-.sr-item{padding:5px 8px;border-radius:5px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
-.sr-item:hover{background:var(--bg2)}
-.sr-item .sr-name{font-size:12.5px;color:var(--text);display:flex;gap:6px;align-items:center}
-.sr-item .sr-name svg{width:12px;height:12px;flex:0 0 12px;color:var(--text-faint)}
-.sr-item .sr-line{font-size:11.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Consolas,monospace}
-.sr-empty{padding:18px 10px;color:var(--text-faint);font-size:12px;line-height:1.7}
-/* CPH 调试视图 */
-.cph-body{flex:1;overflow:auto;padding:8px 10px 14px;min-height:0;display:flex;flex-direction:column;gap:8px}
-.cph-body label{font-size:11px;color:var(--text-faint);letter-spacing:.05em}
-.cph-body textarea{
-  width:100%;min-height:52px;resize:vertical;padding:6px 8px;border-radius:5px;border:1px solid var(--border);
-  background:var(--bg0);color:var(--text);font-size:12.5px;font-family:Consolas,monospace;outline:none;line-height:1.5;
-}
-.cph-body textarea:focus{border-color:var(--accent)}
-.cph-run{display:flex;gap:6px;align-items:center}
-.cph-run button{
-  padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:var(--accent);color:var(--accent-ink);
-  font-size:12.5px;font-weight:600;
-}
-.cph-run button:hover{background:var(--accent-strong);color:var(--accent-ink)}
-#cph-result{
-  background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:8px 10px;
-  font-family:Consolas,monospace;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-all;min-height:36px;
-  max-height:220px;overflow:auto;line-height:1.5;
-}
-#cph-verdict{font-size:12px;font-weight:600;padding:3px 0}
-#cph-verdict.ok{color:var(--ok)}
-#cph-verdict.bad{color:var(--err)}
-#cph-verdict.wait{color:var(--warn)}
-#st-syntax{font-size:12px;white-space:nowrap}
-/* ===== 响应式 ===== */
-@media (max-width:860px){
-  #sidebar{position:absolute;left:0;top:38px;bottom:0;z-index:50;width:220px;box-shadow:var(--shadow)}
-  #app.side-collapsed #sidebar{display:block;transform:translateX(-100%)}
-  #sidebar{transition:transform .15s}
-  #preview{flex:0 0 100%;max-width:100%}
-  #titlebar{flex-wrap:nowrap}
-  .tb-hide-sm{display:none}
-  .side-search input, .modal-box input{font-size:16px}
-}
-@media (max-width:560px){
-  #panel{flex-basis:140px}
-}
-</style>
-</head>
-<body>
-<div id="app" data-theme="dark">
-  <!-- ===== 顶部标题栏 ===== -->
-  <header id="titlebar">
-    <div class="tb-left">
-      <svg class="tb-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="var(--accent)"/><path d="M10 11.5l7 4.5-7 4.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 21.5h5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round"/></svg>
-      <span class="app-name">豆沙包 IDE</span>
-      <span class="tb-sep"></span>
-      <span id="breadcrumb">我的项目</span>
-    </div>
-    <div class="tb-right">
-      <button id="btn-import" class="tb-btn tb-hide-sm" title="从 JSON 导入项目">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><span>导入</span>
-      </button>
-      <button id="btn-export" class="tb-btn" title="导出当前文件（原样下载）">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><span>导出</span>
-      </button>
-      <button id="btn-zip" class="tb-btn tb-hide-sm" title="打包下载为 zip">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v12a1 1 0 01-1 1H4a1 1 0 01-1-1V8"/><path d="M3 8h18l-2-4H5L3 8z"/></svg><span>打包</span>
-      </button>
-      <button id="btn-theme" class="tb-btn" title="主题：深色（点击切换）">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/></svg>
-      </button>
-      <button id="btn-run" class="tb-btn" title="运行当前文件（Ctrl+Enter）">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5.5v13a1 1 0 001.5.87l11-6.5a1 1 0 000-1.74l-11-6.5A1 1 0 007 5.5z"/></svg>运行
-      </button>
-      <button id="btn-exe" class="tb-btn tb-hide-sm" title="导出可执行模块（C/C++ 编译为 WASI 可执行文件 .wasm）">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span>导出EXE</span>
-      </button>
-      <button id="btn-settings" class="tb-btn" title="设置">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </button>
-    </div>
-  </header>
-
-  <!-- ===== 中部：活动栏 + 侧栏 + 工作台 ===== -->
-  <div id="main">
-    <nav id="activitybar" title="活动栏">
-      <button class="ab-btn active" id="ab-explorer" title="资源管理器（Ctrl+Shift+E）" data-view="explorer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>
-      </button>
-      <button class="ab-btn" id="ab-search" title="搜索（Ctrl+Shift+F）" data-view="search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
-      </button>
-      <button class="ab-btn" id="ab-cph" title="CPH 调试（Competitive Programming Helper）" data-view="cph">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 4v16M4 8h8M8 8v8"/><path d="M16 7l5 5-5 5"/></svg>
-      </button>
-      <span class="ab-spacer"></span>
-      <button class="ab-btn" id="ab-settings" title="设置（Ctrl+,）">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </button>
-    </nav>
-    <aside id="sidebar">
-      <div class="side-view show" id="view-explorer">
-        <div class="side-head">
-          <span>资源管理器</span>
-          <div class="side-actions">
-            <button id="btn-new-file" title="新建文件">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8l-5-5z"/><path d="M14 3v5h5M12 12v6M9 15h6"/></svg>
-            </button>
-            <button id="btn-new-folder" title="新建文件夹">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/><path d="M12 11v6M9 14h6"/></svg>
-            </button>
-            <button id="btn-collapse" title="折叠全部">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9l8-6 8 6M4 15l8 6 8-6"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="side-search"><input id="tree-filter" type="text" placeholder="筛选文件…" autocomplete="off"></div>
-        <div id="tree"></div>
-      </div>
-      <div class="side-view" id="view-search">
-        <div class="side-head"><span>搜索</span></div>
-        <div class="sr-input"><input id="sr-keyword" type="text" placeholder="搜索文件名或内容…" autocomplete="off"></div>
-        <div id="search-results"></div>
-      </div>
-      <div class="side-view" id="view-cph">
-        <div class="side-head"><span>CPH 调试</span></div>
-        <div class="cph-body">
-          <label>测试输入（stdin）</label>
-          <textarea id="cph-input" placeholder="输入测试数据，例如：&#10;5&#10;1 2 3 4 5"></textarea>
-          <label>预期输出（可留空）</label>
-          <textarea id="cph-expect" placeholder="预期输出，用于自动对比"></textarea>
-          <div class="cph-run">
-            <button id="cph-run-btn">运行测试</button>
-            <span id="cph-verdict"></span>
-          </div>
-          <label>实际输出</label>
-          <pre id="cph-result"></pre>
-        </div>
-      </div>
-    </aside>
-
-    <section id="workbench">
-      <div id="tabbar"></div>
-      <div id="editor-area">
-        <div id="editor-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8l-5-5z"/><path d="M14 3v5h5"/><path d="M9.5 13l-2 2 2 2M14.5 13l2 2-2 2"/></svg>
-          <p>从左侧打开一个文件，或开始新项目</p>
-          <div class="empty-actions">
-            <button class="primary" id="empty-new-file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8l-5-5z"/><path d="M14 3v5h5M12 12v6M9 15h6"/></svg>新建文件</button>
-            <button id="empty-new-folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/><path d="M12 11v6M9 14h6"/></svg>新建文件夹</button>
-            <button id="empty-new-project"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 5v12a1 1 0 001 1h14a1 1 0 001-1V5M9 5V3h6v2"/></svg>新建项目</button>
-          </div>
-        </div>
-        <div id="cm-host"><textarea id="cm-textarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea></div>
-      </div>
-      <div id="preview" hidden>
-        <div class="pv-bar">
-          <span>页面预览</span>
-          <span style="display:flex;gap:4px">
-            <button id="pv-refresh" title="刷新预览">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 11-2.34-5.66M20 4v4h-4"/></svg>刷新
-            </button>
-            <button id="pv-close" title="关闭预览"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-          </span>
-        </div>
-        <iframe id="pv-frame" sandbox="allow-scripts" title="页面预览"></iframe>
-      </div>
-    </section>
-  </div>
-
-  <!-- ===== 底部状态栏 ===== -->
-  <footer id="statusbar">
-    <span id="st-path">未打开文件</span>
-    <span id="st-lang"></span>
-    <span id="st-syntax" title="语法检查结果"></span>
-    <span id="st-pos"></span>
-    <span class="spacer"></span>
-    <button id="st-font-minus" title="减小字号">A−</button>
-    <button id="st-font-plus" title="增大字号">A+</button>
-    <span id="st-save"></span>
-    <span id="st-count"></span>
-    <button id="st-panel" title="显示 / 隐藏输出面板">输出</button>
-  </footer>
-
-  <!-- ===== 输出面板 ===== -->
-  <section id="panel">
-    <div class="panel-head">
-      <span class="ptab active">输出</span>
-      <div class="panel-actions">
-        <button id="btn-clear">清空</button>
-        <button id="btn-panel">收起</button>
-      </div>
-    </div>
-    <pre id="output"></pre>
-  </section>
-</div>
-
-<div id="ctx-menu"></div>
-<div id="lang-menu"></div>
-<div id="modal">
-  <div class="modal-box">
-    <div class="modal-title" id="modal-title"></div>
-    <div class="modal-msg" id="modal-msg"></div>
-    <input id="modal-input" type="text" autocomplete="off">
-    <div class="modal-actions">
-      <button id="modal-cancel">取消</button>
-      <button id="modal-ok" class="primary">确定</button>
-    </div>
-  </div>
-</div>
-<div id="settings">
-  <div class="settings-box">
-    <div class="settings-head">
-      <span>设置</span>
-      <button id="settings-close" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </div>
-    <div class="settings-body">
-      <div class="set-title">外观</div>
-      <div class="set-row">
-        <span class="set-label">明暗</span>
-        <div class="set-theme">
-          <label><input type="radio" name="set-theme" value="light">浅色</label>
-          <label><input type="radio" name="set-theme" value="dark">深色</label>
-          <label><input type="radio" name="set-theme" value="system">跟随系统</label>
-        </div>
-      </div>
-      <div class="set-row">
-        <span class="set-label">配色方案</span>
-        <div class="set-control">
-          <div class="set-theme set-palette">
-            <label><input type="radio" name="set-palette" value="vscode">VS Code</label>
-            <label><input type="radio" name="set-palette" value="matrix">Matrix</label>
-            <label><input type="radio" name="set-palette" value="vstudio">Visual Studio</label>
-          </div>
-          <button class="set-btn" id="btn-custom-palette" title="自定义编译器高亮颜色">配色自定义</button>
-        </div>
-      </div>
-      <div class="set-title">编辑器</div>
-      <div class="set-row">
-        <span class="set-label">字体</span>
-        <div class="set-control">
-          <select id="set-fontfamily">
-            <option value="default">默认（Consolas / Courier New）</option>
-            <option value="'JetBrains Mono',Consolas,monospace">JetBrains Mono</option>
-            <option value="'Fira Code',Consolas,monospace">Fira Code</option>
-            <option value="'Source Code Pro',Consolas,monospace">Source Code Pro</option>
-            <option value="'Cascadia Code',Consolas,monospace">Cascadia Code</option>
-            <option value="'IBM Plex Mono',Consolas,monospace">IBM Plex Mono</option>
-            <option value="'Noto Sans Mono',Consolas,monospace">Noto Sans Mono</option>
-            <option value="'Ubuntu Mono',Consolas,monospace">Ubuntu Mono</option>
-            <option value="'DejaVu Sans Mono',Consolas,monospace">DejaVu Sans Mono</option>
-            <option value="'Hack',Consolas,monospace">Hack</option>
-            <option value="'Droid Sans Mono',Consolas,monospace">Droid Sans Mono</option>
-            <option value="'Inconsolata',Consolas,monospace">Inconsolata</option>
-            <option value="'Roboto Mono',Consolas,monospace">Roboto Mono</option>
-            <option value="'SF Mono',Menlo,Consolas,monospace">SF Mono</option>
-            <option value="Menlo,Monaco,Consolas,monospace">Menlo / Monaco</option>
-            <option value="'Monaco',Consolas,monospace">Monaco</option>
-            <option value="'Andale Mono',Consolas,monospace">Andale Mono</option>
-            <option value="'Liberation Mono',Consolas,monospace">Liberation Mono</option>
-            <option value="'PT Mono',Consolas,monospace">PT Mono</option>
-            <option value="'Iosevka',Consolas,monospace">Iosevka</option>
-            <option value="'Fantasque Sans Mono',Consolas,monospace">Fantasque Sans Mono</option>
-            <option value="'Victor Mono',Consolas,monospace">Victor Mono</option>
-            <option value="'Sarasa Mono SC',Consolas,monospace">Sarasa Mono SC</option>
-            <option value="Consolas,monospace">Consolas</option>
-            <option value="'Courier New',monospace">Courier New</option>
-          </select>
-          <span class="set-unit">等宽字体（需已安装）</span>
-        </div>
-      </div>
-      <div class="set-row">
-        <span class="set-label">字体大小</span>
-        <div class="set-control">
-          <button id="set-font-minus" title="减小">A−</button>
-          <input type="number" id="set-fontsize" min="11" max="24" step="1">
-          <button id="set-font-plus" title="增大">A+</button>
-          <span class="set-unit">px</span>
-        </div>
-      </div>
-      <div class="set-row">
-        <span class="set-label">提示大小</span>
-        <div class="set-control">
-          <input type="number" id="set-hintsize" min="10" max="24" step="1">
-          <span class="set-unit">px（补全提示文字）</span>
-        </div>
-      </div>
-      <div class="set-row">
-        <span class="set-label">制表符宽度</span>
-        <div class="set-control">
-          <input type="number" id="set-tabsize" min="1" max="8" step="1">
-          <span class="set-unit">个空格（Tab 显示宽度）</span>
-        </div>
-      </div>
-      <div class="set-title">语言版本</div>
-      <div class="set-row">
-        <span class="set-label">语言</span>
-        <div class="set-control">
-          <select id="set-langkey">
-            <option value="cpp">C++</option>
-            <option value="c">C</option>
-            <option value="js">JavaScript</option>
-            <option value="python">Python</option>
-          </select>
-        </div>
-      </div>
-      <div class="set-row">
-        <span class="set-label">标准版本</span>
-        <div class="set-control">
-          <select id="set-langver"></select>
-          <span class="set-unit" id="set-langver-note"></span>
-        </div>
-      </div>
-      <div class="set-title">语法检查</div>
-      <div class="set-row">
-        <span class="set-label">检查时机</span>
-        <div class="set-control">
-          <div class="set-theme">
-            <label><input type="checkbox" name="set-check" value="opensave">打开 / 保存时</label>
-            <label><input type="checkbox" name="set-check" value="newline">换行时</label>
-          </div>
-          <span class="set-unit">可多选，都不选 = 关闭</span>
-        </div>
-      </div>
-      <div class="set-title">设置管理</div>
-      <div class="set-row">
-        <span class="set-label">导出设置</span>
-        <div class="set-control">
-          <button class="set-btn" id="btn-export-settings">导出为 TXT（含全部项目）</button>
-        </div>
-      </div>
-      <div class="set-row">
-        <span class="set-label">导入设置</span>
-        <div class="set-control">
-          <button class="set-btn" id="btn-import-settings">从 TXT 导入</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<div id="custom-palette">
-  <div class="cp-box">
-    <div class="cp-head">
-      <span>配色自定义 · 编译器高亮颜色</span>
-      <button id="cp-close" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </div>
-    <div class="cp-body">
-      <p class="cp-hint">修改下面的颜色后立即生效。只影响代码高亮（关键词、类型、数字等），不会改动界面配色。点击色块或输入十六进制值。</p>
-      <div id="cp-list"></div>
-    </div>
-    <div class="cp-actions">
-      <button id="cp-reset">恢复默认</button>
-      <button class="primary" id="cp-done">完成</button>
-    </div>
-  </div>
-</div>
-<div id="toast"></div>
-<input type="file" id="import-input" accept=".json,.txt,application/json,text/plain" hidden>
-
-<!-- ===== 编辑器内核 CodeMirror 5（jsDelivr） ===== -->
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/clike/clike.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/sql/sql.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/shell/shell.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/yaml/yaml.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closebrackets.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.min.js"></script>
-
-<script>
-'use strict';
-/* ================= 工具函数 ================= */
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-const basename = p => p.split('/').filter(Boolean).pop() || '';
-const dirOf = p => { const s = p.split('/').filter(Boolean); s.pop(); return '/' + s.join('/'); };
-const joinPath = (dir, name) => (dir === '/' ? '/' : dir) + name;
-const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-const ICONS = {
-  chevron: '<svg class="tree-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
-  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a1 1 0 011-1h4l2 2h10a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V7z"/></svg>',
-  folderOpen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a1 1 0 011-1h4l2 2h10a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V7z"/><path d="M4 11h16"/></svg>',
-  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8l-5-5z"/><path d="M14 3v5h5"/></svg>',
-  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6 7l1 13a1 1 0 001 1h8a1 1 0 001-1l1-13"/></svg>',
-  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L20 8l-4-4L4 16v4z"/></svg>',
-  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>',
-  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0l-4-4m4 4l4-4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/></svg>',
-  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
-  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/></svg>',
-  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>',
-  auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18z" fill="currentColor"/></svg>',
-};
-const icon = k => { const s = document.createElement('span'); s.innerHTML = ICONS[k]; return s; };
-
-/* ================= 应用状态 ================= */
-const STORAGE_KEY = 'doubao-ide-project-v1';
-const state = {
-  theme: 'dark',
-  palette: 'vscode',     // 配色方案：vscode / matrix / vstudio
-  fontSize: 14,
-  hintSize: 13,          // 补全提示字号
-  fontFamily: 'default', // 编辑器字体（CSS font-family 值）
-  checkOpen: true,       // 语法检查：打开/保存时
-  checkNewline: false,   // 语法检查：换行时（可多选）
-  customTokens: {},      // 配色自定义：{keyword:'#hex', ...}
-  activity: 'explorer',  // 活动栏当前视图：explorer / search / cph
-  langVer: { cpp: 'c++17', c: 'c11', js: 'es2020', python: '3.10' },
-  root: null,
-  tabs: [],           // [{path, dirty}]
-  activePath: null,
-  filter: '',
-  cm: null,
-  cmReady: typeof CodeMirror !== 'undefined',
-  runner: null,
-  pyLoaded: false,
-  pyLoading: false,
-  ctxTarget: null,    // 右键菜单目标 {path, type}
-  langs: {},          // 路径 -> 语言覆盖 {label, mode, ext}
-  tabSize: 4,         // 制表符宽度（空格数）
-  ccReady: false, ccCompile: null, ccWasi: null, ccBusy: false,   // C/C++ 编译器状态
-  ccClang: null, ccLld: null, ccSysroot: null, ccInv: {}, ccStderr: '',
-};
-
-/* ================= 虚拟文件系统 ================= */
-const splitPath = p => p.split('/').filter(Boolean);
-function findNode(p){
-  let n = state.root;
-  for (const seg of splitPath(p)){
-    if (!n || n.type !== 'folder') return null;
-    n = (n.children || []).find(c => c.name === seg);
-    if (!n) return null;
-  }
-  return n;
-}
-function findParent(p){
-  const segs = splitPath(p); const name = segs.pop();
-  let n = state.root;
-  for (const seg of segs){
-    if (!n || n.type !== 'folder') return null;
-    n = (n.children || []).find(c => c.name === seg && c.type === 'folder');
-    if (!n) return null;
-  }
-  return { parent: n, name };
-}
-function collectFiles(node, base, out){
-  (node.children || []).forEach(c => {
-    const p = base + c.name;
-    if (c.type === 'folder') collectFiles(c, p + '/', out);
-    else out.push(p);
-  });
-  return out;
-}
-function countFiles(node){
-  if (node.type === 'file') return 1;
-  return (node.children || []).reduce((s, c) => s + countFiles(c), 0);
-}
-
-/* ================= 默认示例项目 ================= */
-function defaultProject(){
-  return {
-    name: '我的项目', type: 'folder', expanded: true, children: [
-      {
-        name: 'index.html', type: 'file', content:
-`<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>欢迎使用豆沙包 IDE</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main class="card">
-    <h1>欢迎使用豆沙包 IDE</h1>
-    <p>这是一个可直接在浏览器中运行的网页项目。编辑左侧文件后，点击右上角「运行」即可预览页面。</p>
-    <button id="count-btn">点击计数：0</button>
-    <p class="hint">试试修改 style.css 换主题色，或修改 script.js 增加交互逻辑。</p>
-  </main>
-  <script src="script.js"><\/script>
-</body>
-</html>`
-      },
-      {
-        name: 'style.css', type: 'file', content:
-`:root { --accent: #2b8cbe; }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: #0d1117; color: #e6edf3;
-}
-.card {
-  max-width: 560px; padding: 36px 40px; text-align: center;
-  background: #161b22; border: 1px solid #30363d; border-radius: 12px;
-}
-h1 { font-size: 24px; margin-bottom: 14px; }
-p { color: #9da7b3; line-height: 1.7; margin-bottom: 16px; }
-button {
-  padding: 10px 22px; font-size: 15px; border: none; border-radius: 8px;
-  background: var(--accent); color: #fff; cursor: pointer;
-}
-.hint { font-size: 12px; color: #6e7681; }`
-      },
-      {
-        name: 'script.js', type: 'file', content:
-`// 豆沙包 IDE 示例脚本
-let count = 0;
-const btn = document.getElementById('count-btn');
-
-if (btn) {
-  btn.addEventListener('click', () => {
-    count += 1;
-    btn.textContent = '点击计数：' + count;
-    console.log('按钮被点击了，当前计数：' + count);
-  });
-  console.log('脚本已加载：在 index.html 预览中点击按钮试试看。');
-} else {
-  console.log('未找到 count-btn，请在 index.html 的预览中运行本脚本。');
-}`
-      },
-      {
-        name: 'README.md', type: 'file', content:
-`# 豆沙包 IDE 演示项目
-
-这是一个内置的示例项目，用来体验 IDE 的基本功能。
-
-## 常用操作
-
-- 点击左侧文件即可打开编辑
-- 右上角「运行」：根据当前文件类型执行（HTML 预览 / JS 运行 / Python 运行）
-- 新建文件默认名为 New_Code，Ctrl+K 选择语言，Ctrl+S 保存时命名
-- 输入字母时自动联想补全（函数、变量、关键字）
-- 右键文件树可重命名、删除、复制文件
-- Ctrl/Cmd + S 保存，Ctrl/Cmd + Enter 快速运行
-- 数据保存在浏览器本地（localStorage），可随时用「导出 / 导入」备份`
-      },
-    ]
-  };
-}
-
-/* ================= 持久化 ================= */
-function saveProject(){
-  try {
-    const data = JSON.stringify({
-      version: 5, theme: state.theme, palette: state.palette,
-      fontSize: state.fontSize, hintSize: state.hintSize, fontFamily: state.fontFamily,
-      tabSize: state.tabSize, checkOpen: state.checkOpen, checkNewline: state.checkNewline,
-      customTokens: state.customTokens, langVer: state.langVer,
-      root: state.root, tabs: state.tabs, activePath: state.activePath, langs: state.langs,
-    });
-    localStorage.setItem(STORAGE_KEY, data);
-    if (state.checkOpen && state.activePath) runSyntaxCheck();
-  } catch (e) { out('本地存储失败：' + e.message, 'warn'); }
-}
-let saveTimer = null;
-function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveProject, 500); }
-
-function loadProject(){
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const d = JSON.parse(raw);
-    if (!d || !d.root || d.root.type !== 'folder') return false;
-    state.root = d.root;
-    state.theme = (d.theme === 'light' || d.theme === 'system') ? d.theme : 'dark';
-    state.palette = (['vscode', 'matrix', 'vstudio'].includes(d.palette)) ? d.palette : 'vscode';
-    state.fontSize = Number(d.fontSize) || 14;
-    state.hintSize = Number(d.hintSize) || 13;
-    state.fontFamily = d.fontFamily || 'default';
-    // version 5：checkOpen / checkNewline 多选；兼容旧版 checkMode 单选
-    if (d.checkOpen === true || d.checkOpen === false) state.checkOpen = d.checkOpen;
-    if (d.checkNewline === true || d.checkNewline === false) state.checkNewline = d.checkNewline;
-    else if (d.checkMode === 'opensave'){ state.checkOpen = true; state.checkNewline = false; }
-    else if (d.checkMode === 'newline'){ state.checkOpen = false; state.checkNewline = true; }
-    else if (d.checkMode === 'none'){ state.checkOpen = false; state.checkNewline = false; }
-    if (d.customTokens && typeof d.customTokens === 'object') state.customTokens = d.customTokens;
-    else state.customTokens = {};
-    state.tabSize = Math.min(8, Math.max(1, Number(d.tabSize) || 4));
-    if (d.langVer && typeof d.langVer === 'object'){
-      Object.keys(state.langVer).forEach(k => { if (d.langVer[k]) state.langVer[k] = d.langVer[k]; });
-    }
-    state.langs = (d.langs && typeof d.langs === 'object') ? d.langs : {};
-    state.tabs = (d.tabs || []).filter(t => { const n = findNode(t.path); return n && n.type === 'file'; });
-    state.activePath = d.activePath && findNode(d.activePath) ? d.activePath : null;
-    return true;
-  } catch (e) { return false; }
-}
-
-/* ================= 文件树渲染 ================= */
-function nodeMatches(node, q){
-  if (!q) return true;
-  if (node.name.toLowerCase().includes(q)) return true;
-  if (node.type === 'folder') return (node.children || []).some(c => nodeMatches(c, q));
-  return false;
-}
-function renderNode(node, q, depth, p){
-  const wrap = el('div', 'tree-node');
-  const isFolder = node.type === 'folder';
-  const row = el('div', 'tree-row ' + (isFolder ? 'folder' : 'tree-file'));
-  row.style.paddingLeft = (6 + depth * 14) + 'px';
-  row.dataset.path = p;
-
-  if (isFolder) {
-    const open = node.expanded !== false;
-    const chev = icon('chevron'); chev.firstChild.classList.toggle('open', open);
-    row.appendChild(chev);
-    row.appendChild(icon(open ? 'folderOpen' : 'folder'));
-  } else {
-    const blank = el('span', 'tree-chevron blank');
-    row.appendChild(blank);
-    row.appendChild(icon('file'));
-  }
-  const name = el('span', 'tree-name', node.name);
-  row.appendChild(name);
-  if (!isFolder && state.activePath === p) row.classList.add('active');
-  const tab = state.tabs.find(t => t.path === p);
-  if (!isFolder && tab && tab.dirty) row.appendChild(el('span', 'tree-dirty'));
-
-  row.addEventListener('click', e => {
-    e.stopPropagation();
-    if (isFolder) {
-      node.expanded = !(node.expanded !== false);
-      renderTree();
-    } else {
-      openFile(p);
-    }
-  });
-  row.addEventListener('contextmenu', e => {
-    e.preventDefault(); e.stopPropagation();
-    showCtxMenu(e.clientX, e.clientY, { path: p, type: isFolder ? 'folder' : 'file', node });
-  });
-  wrap.appendChild(row);
-
-  if (isFolder && node.expanded !== false) {
-    (node.children || []).forEach(c => {
-      if (nodeMatches(c, q)) wrap.appendChild(renderNode(c, q, depth + 1, p + '/' + c.name));
-    });
-  }
-  return wrap;
-}
-function renderTree(){
-  const tree = $('#tree'); tree.textContent = '';
-  const q = state.filter.trim().toLowerCase();
-  if (!state.root.children || !state.root.children.length){
-    tree.appendChild(el('div', 'tree-empty', '空项目。点击上方「新建文件」开始，或右键空白处创建。'));
-    return;
-  }
-  state.root.children.forEach(c => {
-    if (nodeMatches(c, q)) tree.appendChild(renderNode(c, q, 0, '/' + c.name));
-  });
-}
-
-/* ================= 标签页渲染 ================= */
-function renderTabs(){
-  const bar = $('#tabbar'); bar.textContent = '';
-  bar.style.display = state.tabs.length ? 'flex' : 'none';
-  state.tabs.forEach(t => {
-    const tab = el('div', 'tab' + (t.path === state.activePath ? ' active' : '') + (t.dirty ? ' dirty' : ''));
-    tab.dataset.path = t.path;
-    tab.appendChild(el('span', 'tab-dot'));
-    tab.appendChild(el('span', 'tab-name', basename(t.path)));
-    const close = el('span', 'tab-close'); close.innerHTML = ICONS.close; close.title = '关闭';
-    tab.appendChild(close);
-    close.addEventListener('click', e => { e.stopPropagation(); closeTab(t.path); });
-    tab.addEventListener('click', () => openFile(t.path));
-    bar.appendChild(tab);
-  });
-}
-
-/* ================= 状态栏信息 ================= */
-function updateBreadcrumb(){
-  const active = state.activePath ? ' · ' + state.activePath.slice(1) : '';
-  $('#breadcrumb').textContent = state.root.name + active;
-}
-function updateStatusCount(){
-  $('#st-count').textContent = state.root.name + ' · ' + countFiles(state.root) + ' 个文件';
-}
-function updateSaveLabel(){
-  const t = state.tabs.find(t => t.path === state.activePath);
-  $('#st-save').textContent = state.activePath ? (t && t.dirty ? '● 未保存' : '已保存') : '';
-}
-function updateStatusPos(){
-  if (!state.cm || !state.activePath) { $('#st-pos').textContent = ''; return; }
-  const cur = state.cm.getCursor();
-  $('#st-pos').textContent = 'Ln ' + (cur.line + 1) + ', Col ' + (cur.ch + 1);
-}
-/* ================= 输出面板 ================= */
-function out(msg, type = 'system'){
-  const pre = $('#output');
-  const line = el('div', 'out-line');
-  line.appendChild(el('span', 'out-time', new Date().toLocaleTimeString('zh-CN', { hour12: false })));
-  line.appendChild(el('span', 'out-msg out-' + type, String(msg)));
-  pre.appendChild(line);
-  pre.scrollTop = pre.scrollHeight;
-}
-function outClear(){ $('#output').textContent = ''; }
-
-/* ================= Toast / 弹窗 ================= */
-let toastTimer = null;
-function toast(msg){
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4200);
-}
-let modalResolve = null;
-function showModal({ title, msg = '', value = '', placeholder = '', okText = '确定' }){
-  return new Promise(res => {
-    modalResolve = res;
-    $('#modal-title').textContent = title;
-    $('#modal-msg').textContent = msg;
-    const input = $('#modal-input');
-    input.value = value; input.placeholder = placeholder;
-    $('#modal-ok').textContent = okText;
-    $('#modal').classList.add('show');
-    setTimeout(() => input.focus(), 30);
-  });
-}
-function closeModal(val){
-  $('#modal').classList.remove('show');
-  const r = modalResolve; modalResolve = null;
-  if (r) r(val);
-}
-
-/* ================= 编辑器 ================= */
-const MODES = {
-  '.js':'javascript', '.mjs':'javascript', '.ts':'javascript', '.jsx':'javascript',
-  '.html':'htmlmixed', '.htm':'htmlmixed', '.vue':'htmlmixed',
-  '.css':'css', '.scss':'css', '.less':'css', '.sass':'css',
-  '.py':'python', '.json':'json', '.md':'markdown', '.markdown':'markdown',
-  '.sql':'sql', '.sh':'shell', '.bash':'shell', '.zsh':'shell',
-  '.yaml':'yaml', '.yml':'yaml', '.xml':'xml', '.svg':'xml',
-  '.java':'text/x-java', '.c':'text/x-csrc', '.h':'text/x-csrc', '.cpp':'text/x-c++src', '.cc':'text/x-c++src', '.cxx':'text/x-c++src', '.hpp':'text/x-c++src', '.hh':'text/x-c++src', '.cs':'text/x-csharp', '.kt':'text/x-kotlin',
-};
-function modeFor(p){
-  const ext = (p.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-  return MODES[ext] || 'text/plain';
-}
-const LANGS = [
-  { label: 'JavaScript', mode: 'javascript', ext: '.js' },
-  { label: 'TypeScript', mode: 'javascript', ext: '.ts' },
-  { label: 'HTML', mode: 'htmlmixed', ext: '.html' },
-  { label: 'CSS', mode: 'css', ext: '.css' },
-  { label: 'Python', mode: 'python', ext: '.py' },
-  { label: 'JSON', mode: 'json', ext: '.json' },
-  { label: 'Markdown', mode: 'markdown', ext: '.md' },
-  { label: 'SQL', mode: 'sql', ext: '.sql' },
-  { label: 'Shell', mode: 'shell', ext: '.sh' },
-  { label: 'YAML', mode: 'yaml', ext: '.yml' },
-  { label: 'XML', mode: 'xml', ext: '.xml' },
-  { label: 'Java', mode: 'text/x-java', ext: '.java' },
-  { label: 'C', mode: 'text/x-csrc', ext: '.c' },
-  { label: 'C++', mode: 'text/x-c++src', ext: '.cpp' },
-  { label: 'C#', mode: 'text/x-csharp', ext: '.cs' },
-  { label: '纯文本', mode: 'text/plain', ext: '' },
-];
-function langByMode(mode){ return LANGS.find(l => l.mode === mode) || null; }
-/* 旧版本持久化的 clike 迁移到具体方言 */
-function migrateMode(m, label, ext){
-  if (m !== 'clike') return m;
-  if (label === 'C' || ext === '.c' || ext === '.h') return 'text/x-csrc';
-  if (label === 'Java') return 'text/x-java';
-  if (label === 'C#') return 'text/x-csharp';
-  return 'text/x-c++src';
-}
-function modeForPath(p){
-  if (state.langs[p]){
-    const l = state.langs[p];
-    return migrateMode(l.mode, l.label, l.ext);
-  }
-  return modeFor(p);
-}
-
-/* ================= 自动补全词库 ================= */
-const JS_WORDS = ['console','document','window','globalThis','Math','JSON','Object','Array','String','Number','Boolean','Date','RegExp','Promise','Symbol','Error','TypeError','RangeError','EvalError','URIError','AggregateError','Map','Set','WeakMap','WeakSet','Proxy','Reflect','function','var','let','const','return','if','else','for','while','do','switch','case','break','continue','default','new','delete','typeof','instanceof','in','of','try','catch','finally','throw','class','extends','super','this','async','await','yield','import','export','from','null','undefined','true','false','NaN','Infinity','fetch','setTimeout','setInterval','clearTimeout','clearInterval','requestAnimationFrame','cancelAnimationFrame','queueMicrotask','structuredClone','atob','btoa','encodeURI','decodeURI','encodeURIComponent','decodeURIComponent','alert','confirm','prompt','localStorage','sessionStorage','navigator','location','history','addEventListener','removeEventListener','querySelector','querySelectorAll','getElementById','getElementsByClassName','getElementsByTagName','createElement','createElementNS','appendChild','removeChild','replaceChild','insertBefore','innerHTML','textContent','outerHTML','dataset','attributes','children','childNodes','parentNode','parentElement','firstChild','lastChild','nextSibling','previousSibling','classList','style','offsetWidth','offsetHeight','clientWidth','clientHeight','getBoundingClientRect','scrollIntoView','scrollTo','closest','contains','matches','preventDefault','stopPropagation','target','currentTarget','clientX','clientY','key','keyCode','code','shiftKey','ctrlKey','metaKey','altKey','Map','Set','map','filter','reduce','forEach','find','findIndex','findLast','includes','push','pop','shift','unshift','slice','splice','join','split','concat','reverse','sort','toSorted','toReversed','indexOf','lastIndexOf','some','every','flat','flatMap','fill','copyWithin','at','keys','values','entries','assign','create','freeze','isFrozen','seal','is','fromEntries','isArray','stringify','parse','floor','ceil','round','trunc','random','abs','min','max','sqrt','cbrt','pow','log','log2','log10','sin','cos','tan','asin','acos','atan','atan2','hypot','sign','exp','PI','E','LN2','LN10','LOG2E','LOG10E','SQRT2','toUpperCase','toLowerCase','trim','trimStart','trimEnd','replace','replaceAll','match','matchAll','search','charAt','charCodeAt','codePointAt','startsWith','endsWith','repeat','padStart','padEnd','localeCompare','normalize','substring','substr','toString','valueOf','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toLocaleString','length','prototype','arguments','name','message','stack','crypto','performance','Intl','AbortController','AbortSignal','EventTarget','CustomEvent','Blob','FormData','Headers','Request','Response','URL','URLSearchParams','WebSocket','Worker','SharedWorker','TextEncoder','TextDecoder','ReadableStream','WritableStream','TransformStream','FileReader','Image','Audio','Notification','BigInt','BigInt64Array','BigUint64Array','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','ArrayBuffer','SharedArrayBuffer','DataView','Atomics','WeakRef','FinalizationRegistry','Promise.all','Promise.race','Promise.allSettled','Promise.any','Object.keys','Object.values','Object.entries','Object.assign','Number.isNaN','Number.isInteger','Number.isFinite','Number.parseFloat','Number.parseInt','String.fromCharCode','String.fromCodePoint','Array.from','Array.of','Math.max','Math.min','Math.random','require','module','exports','process','Buffer','__dirname','__filename','global'];
-const HTML_WORDS = ['html','head','body','title','meta','link','script','style','div','span','p','a','img','input','button','form','label','select','option','textarea','ul','ol','li','table','thead','tbody','tfoot','tr','td','th','caption','col','colgroup','h1','h2','h3','h4','h5','h6','section','article','header','footer','nav','main','aside','br','hr','strong','em','i','b','u','s','small','mark','sub','sup','del','ins','abbr','address','blockquote','pre','code','kbd','samp','var','dfn','cite','q','iframe','video','audio','source','track','canvas','svg','path','rect','circle','ellipse','line','polyline','polygon','g','defs','use','symbol','img','picture','figure','figcaption','details','summary','dialog','datalist','fieldset','legend','optgroup','output','progress','meter','time','data','ruby','rt','rp','bdi','bdo','wbr','map','area','object','param','embed','template','slot','noscript','class','id','href','src','srcset','sizes','alt','title','type','name','value','placeholder','disabled','checked','readonly','required','selected','multiple','autofocus','autocomplete','autoplay','controls','loop','muted','poster','preload','playsinline','download','target','rel','style','onclick','onchange','onsubmit','oninput','onload','onerror','onkeydown','onkeyup','onfocus','onblur','onmouseover','onmouseout','onmouseenter','onmouseleave','lang','dir','hidden','tabindex','accesskey','draggable','spellcheck','contenteditable','data-*','aria-label','role','action','method','enctype','accept','accept-charset','max','min','maxlength','minlength','step','pattern','list','rows','cols','rowspan','colspan','headers','scope','cellspacing','cellpadding','border','align','valign','width','height','loading','decoding','crossorigin','integrity','referrerpolicy'];
-const CSS_WORDS = ['color','background','background-color','background-image','background-size','background-position','background-repeat','background-attachment','background-clip','background-origin','background-blend-mode','margin','margin-top','margin-right','margin-bottom','margin-left','padding','padding-top','padding-right','padding-bottom','padding-left','border','border-top','border-right','border-bottom','border-left','border-color','border-style','border-width','border-radius','border-top-left-radius','border-collapse','border-spacing','border-image','outline','outline-offset','outline-color','outline-style','outline-width','display','position','top','right','bottom','left','inset','z-index','width','height','max-width','min-width','max-height','min-height','aspect-ratio','box-sizing','box-shadow','font','font-size','font-weight','font-family','font-style','font-variant','font-stretch','font-display','line-height','letter-spacing','word-spacing','text-align','text-decoration','text-transform','text-indent','text-overflow','text-shadow','text-wrap','white-space','word-break','word-wrap','overflow-wrap','overflow','overflow-x','overflow-y','hyphens','writing-mode','direction','unicode-bidi','vertical-align','visibility','opacity','cursor','pointer-events','user-select','resize','appearance','caret-color','accent-color','transition','animation','transform','transform-origin','transform-style','perspective','backface-visibility','filter','backdrop-filter','mix-blend-mode','isolation','clip-path','mask','mask-image','float','clear','content','flex','flex-direction','flex-wrap','flex-shrink','flex-grow','flex-basis','flex-flow','justify-content','justify-items','justify-self','align-items','align-content','align-self','order','gap','row-gap','column-gap','grid','grid-template-columns','grid-template-rows','grid-template-areas','grid-area','grid-column','grid-column-start','grid-column-end','grid-row','grid-row-start','grid-row-end','grid-auto-rows','grid-auto-columns','grid-auto-flow','place-items','place-content','place-self','list-style','list-style-type','list-style-position','list-style-image','table-layout','empty-cells','caption-side','counter-reset','counter-increment','quotes','scroll-behavior','scroll-snap-type','scroll-snap-align','scroll-margin','scroll-padding','touch-action','overscroll-behavior','object-fit','object-position','@media','@keyframes','@import','@font-face','@supports','@charset','@namespace','@page','!important',':hover',':focus',':active',':visited',':before',':after',':nth-child',':not','::before','::after','::placeholder','::selection','::scrollbar'];
-const PY_WORDS = ['def','return','if','elif','else','for','while','import','from','as','class','try','except','finally','raise','with','lambda','yield','global','nonlocal','pass','break','continue','in','is','not','and','or','None','True','False','self','cls','print','len','range','str','int','float','bool','bytes','bytearray','complex','list','dict','set','frozenset','tuple','sum','min','max','abs','round','sorted','reversed','enumerate','zip','map','filter','isinstance','issubclass','type','open','input','format','repr','id','hash','dir','vars','locals','globals','callable','hasattr','getattr','setattr','delattr','object','staticmethod','classmethod','property','super','eval','exec','compile','exit','quit','help','chr','ord','hex','oct','bin','divmod','pow','all','any','iter','next','slice','memoryview','join','append','extend','insert','pop','remove','clear','copy','count','index','split','strip','lstrip','rstrip','replace','upper','lower','title','capitalize','startswith','endswith','find','rfind','isdigit','isalpha','isalnum','isspace','keys','values','items','get','setdefault','update','__init__','__name__','__file__','__doc__','__dict__','__class__','__str__','__repr__','__eq__','__len__','__iter__','__getitem__','__setitem__','__call__','__enter__','__exit__','os','sys','math','random','datetime','time','json','re','collections','functools','itertools','pathlib','subprocess','threading','multiprocessing','asyncio','base64','hashlib','hmac','socket','urllib','http','csv','sqlite3','logging','argparse','shutil','glob','tempfile','io','traceback','copy','operator','statistics','decimal','fractions','array','queue','heapq','bisect','string','struct','pickle','xml','html','uuid','secrets','signal','platform','getpass'];
-const SQL_WORDS = ['select','from','where','insert','into','values','update','set','delete','create','table','database','index','view','trigger','procedure','function','drop','alter','add','column','rename','primary','key','foreign','references','constraint','unique','not','null','default','check','distinct','all','count','sum','avg','min','max','group','by','having','order','asc','desc','limit','offset','join','inner','left','right','full','outer','cross','on','using','union','intersect','except','between','like','in','exists','any','some','and','or','is','case','when','then','else','end','with','recursive','truncate','commit','rollback','begin','transaction','grant','revoke','date','time','timestamp','int','integer','bigint','smallint','tinyint','text','varchar','char','decimal','numeric','float','double','real','boolean','blob','clob','serial','identity','primary key','auto_increment','explain','analyze','vacuum','pragma','current_date','current_time','current_timestamp'];
-const SHELL_WORDS = ['echo','printf','ls','cd','cat','less','more','head','tail','mkdir','rm','rmdir','cp','mv','touch','ln','find','grep','egrep','sed','awk','cut','paste','tr','sort','uniq','wc','comm','diff','patch','tee','xargs','basename','dirname','read','test','true','false','if','then','else','elif','fi','for','while','do','done','case','esac','function','return','exit','local','declare','export','source','alias','unset','eval','exec','trap','sleep','date','time','whoami','id','groups','pwd','which','type','command','env','uname','hostname','uptime','free','top','ps','kill','killall','jobs','fg','bg','wait','nohup','disown','ulimit','umask','chmod','chown','chgrp','useradd','usermod','passwd','sudo','su','apt','apt-get','yum','dnf','brew','dpkg','rpm','curl','wget','ssh','scp','sftp','rsync','tar','gzip','gunzip','zip','unzip','bzip2','xz','zcat','less','netstat','ss','lsof','ping','traceroute','nc','telnet','dig','nslookup','git','npm','npx','yarn','pnpm','node','python','python3','pip','pip3','cargo','make','cmake','gcc','g++','clang','docker','docker-compose','kubectl','vim','nano','tree','stat','file','strings','hexdump','od','sort','seq','shuf','jq','yq','awk','sed','export','PATH','HOME','USER','SHELL'];
-const YAML_WORDS = ['true','false','null','yes','no','on','off','none','~','---','...'];
-function hintDictFor(mode){
-  if (mode === 'htmlmixed') return HTML_WORDS;
-  if (mode === 'css') return CSS_WORDS;
-  if (mode === 'python') return PY_WORDS;
-  if (mode === 'sql') return SQL_WORDS;
-  if (mode === 'shell') return SHELL_WORDS;
-  if (mode === 'yaml') return YAML_WORDS;
-  if (mode === 'javascript' || mode === 'clike' || mode === 'text/x-csrc' || mode === 'text/x-c++src' || mode === 'text/x-java' || mode === 'text/x-csharp' || mode === 'text/plain') return JS_WORDS;
-  return null;
-}
-function codeHint(cm){
-  const cur = cm.getCursor();
-  const token = cm.getTokenAt(cur);
-  if (token.type && (token.type.indexOf('string') > -1 || token.type.indexOf('comment') > -1)) return null;
-  const mode = cm.getOption('mode');
-  const modeName = typeof mode === 'string' ? mode : (mode && mode.name);
-  const start = token.start, end = cur.ch;
-  let prefix = cm.getRange({ line: cur.line, ch: start }, { line: cur.line, ch: end });
-  if (modeName === 'htmlmixed' && prefix.indexOf('<') > -1){
-    // HTML 标签联想：输入 < 或 <d 时提示标签
-    const from = token.start + prefix.lastIndexOf('<') + 1;
-    const p = prefix.slice(prefix.lastIndexOf('<') + 1).replace(/[^A-Za-z0-9]/g, '');
-    const list = p ? HTML_WORDS.filter(w => w.toLowerCase().startsWith(p.toLowerCase())) : HTML_WORDS.slice();
-    return { list: list.slice(0, 30), from: { line: cur.line, ch: from }, to: { line: cur.line, ch: end } };
-  }
-  prefix = prefix.replace(/[^A-Za-z0-9_$]/g, '');
-  if (!prefix) return null;
-  const dict = hintDictFor(modeName);
-  const res = [], seen = {};
-  const push = w => { if (!seen[w] && w.toLowerCase().startsWith(prefix.toLowerCase())){ seen[w] = 1; res.push(w); } };
-  if (dict) dict.forEach(push);
-  (cm.getValue().match(/[A-Za-z_$][\w$]*/g) || []).forEach(push);
-  res.sort((a, b) => {
-    const pa = a.toLowerCase() === prefix.toLowerCase() ? 0 : 1;
-    const pb = b.toLowerCase() === prefix.toLowerCase() ? 0 : 1;
-    if (pa !== pb) return pa - pb;
-    return a.length - b.length || (a < b ? -1 : 1);
-  });
-  return { list: res.slice(0, 30), from: { line: cur.line, ch: start }, to: { line: cur.line, ch: end } };
-}
-
-function initEditor(){
-  if (!state.cmReady){
-    const st = document.createElement('style');
-    st.textContent = '#cm-host textarea{position:absolute;inset:0;width:100%;height:100%;background:var(--bg0);color:var(--text);border:none;outline:none;resize:none;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:14px;line-height:1.6}';
-    document.head.appendChild(st);
-    $('#cm-textarea').addEventListener('input', onTextareaChange);
-    return;
-  }
-  state.cm = CodeMirror.fromTextArea($('#cm-textarea'), {
-    mode: 'text/plain', theme: 'ide', lineNumbers: true, matchBrackets: true,
-    autoCloseBrackets: true, indentUnit: state.tabSize, tabSize: state.tabSize, indentWithTabs: true,
-    lineWrapping: false,
-  });
-  state.cm.setSize('100%', '100%');
-  state.cm.on('change', (cm, ch) => {
-    if (ch && ch.origin === 'setValue') return;
-    onEditorChange();
-    const newlined = ch && (ch.text.length > 1 || ch.removed.length > 1 || ch.text.some(t => t.includes('\n')));
-    if (state.checkNewline && newlined) scheduleSyntaxCheck();
-  });
-  state.cm.on('cursorActivity', updateStatusPos);
-  state.cm.on('beforeChange', (cm, ch) => {
-    // #include <xxx> 自动补全后的 > 跳过（再输入 > 不再重复）
-    if (ch.origin === '+input' && ch.text.length === 1 && ch.text[0] === '>'){
-      const cur = ch.from;
-      if (cm.getLine(cur.line)[cur.ch] === '>' && /^\s*#include\s*<\S*$/.test(cm.getLine(cur.line).slice(0, cur.ch))){
-        ch.cancel();
-        cm.setCursor({ line: cur.line, ch: cur.ch + 1 });
-      }
-    }
-  });
-  state.cm.on('inputRead', (cm, ch) => {
-    if (!ch.text[0] || typeof cm.showHint !== 'function') return;
-    const c = ch.text[0];
-    const mode = cm.getOption('mode');
-    const m = typeof mode === 'string' ? mode : (mode && mode.name);
-    // C/C++：#include < 自动补 >（兼容旧持久化的 clike）
-    if (c === '<' && (m === 'text/x-csrc' || m === 'text/x-c++src' || m === 'clike')){
-      const cur = cm.getCursor();
-      const before = cm.getLine(cur.line).slice(0, cur.ch);
-      if (/^\s*#include\s*<\s*$/.test(before)){
-        cm.replaceRange('>', { line: cur.line, ch: cur.ch });
-        cm.setCursor({ line: cur.line, ch: cur.ch });
-        return;
-      }
-    }
-    if (!/[A-Za-z0-9_$]/.test(c) && !(c === '<' && m === 'htmlmixed')) return;
-    clearTimeout(state.hintTimer);
-    state.hintTimer = setTimeout(() => cm.showHint({ hint: codeHint, completeSingle: false }), 160);
-  });
-  applyFontSize();
-}
-function onEditorChange(){
-  if (!state.activePath) return;
-  const node = findNode(state.activePath);
-  if (!node) return;
-  node.content = state.cm.getValue();
-  const tab = state.tabs.find(t => t.path === state.activePath);
-  if (tab && !tab.dirty) tab.dirty = true;
-  renderTabs(); renderTree(); updateSaveLabel(); scheduleSave();
-}
-function onTextareaChange(){
-  if (!state.activePath) return;
-  const node = findNode(state.activePath);
-  if (!node) return;
-  node.content = $('#cm-textarea').value;
-  const tab = state.tabs.find(t => t.path === state.activePath);
-  if (tab && !tab.dirty) tab.dirty = true;
-  renderTabs(); renderTree(); updateSaveLabel(); scheduleSave();
-}
-function applyEditor(p){
-  const node = findNode(p);
-  $('#editor-empty').style.display = 'none';
-  $('#cm-host').style.display = 'block';
-  if (state.cm){
-    state.cm.setValue(node.content);
-    state.cm.setOption('mode', modeForPath(p));
-    state.cm.refresh();
-    state.cm.focus();
-  } else {
-    const ta = $('#cm-textarea'); ta.value = node.content; ta.focus();
-  }
-}
-function hideEditor(){
-  $('#cm-host').style.display = 'none';
-  $('#editor-empty').style.display = 'flex';
-}
-function openFile(p){
-  const node = findNode(p);
-  if (!node || node.type !== 'file') return;
-  if (!state.tabs.some(t => t.path === p)) state.tabs.push({ path: p, dirty: false });
-  state.activePath = p;
-  applyEditor(p);
-  renderTabs(); renderTree(); updateBreadcrumb(); updateStatus(p); updateSaveLabel();
-  if (state.checkOpen) runSyntaxCheck();
-}
-function updateStatus(p){
-  $('#st-path').textContent = p;
-  const lang = state.langs[p];
-  $('#st-lang').textContent = lang ? lang.label : (modeFor(p) === 'text/plain' ? '纯文本' : modeFor(p).toUpperCase());
-  $('#st-lang').title = '点击选择语言（Ctrl+K）';
-}
-function closeTab(p){
-  const idx = state.tabs.findIndex(t => t.path === p);
-  if (idx < 0) return;
-  state.tabs.splice(idx, 1);
-  if (state.activePath === p){
-    state.activePath = state.tabs.length ? state.tabs[Math.max(0, idx - 1)].path : null;
-    if (state.activePath) applyEditor(state.activePath); else hideEditor();
-  }
-  renderTabs(); renderTree(); updateBreadcrumb(); updateSaveLabel(); scheduleSave();
-  if (state.activePath) updateStatus(state.activePath);
-  else { $('#st-path').textContent = '未打开文件'; $('#st-lang').textContent = ''; }
-}
-async function saveActive(){
-  if (!state.activePath) return;
-  let path = state.activePath;
-  const node = findNode(path);
-  if (!node) return;
-  if (state.cm) node.content = state.cm.getValue();
-  else node.content = $('#cm-textarea').value;
-  if (node.untitled){
-    const lang = state.langs[path];
-    let suggested = node.name;
-    if (lang && lang.ext && !/\.[^.]+$/.test(node.name)) suggested = node.name + lang.ext;
-    const name = await showModal({ title: '保存文件', msg: '为未命名文件命名（扩展名决定语言识别）：', value: suggested, okText: '保存' });
-    if (name === null) return;
-    const trimmed = name.trim();
-    if (!trimmed){ toast('文件名不能为空'); return; }
-    if (trimmed.includes('/') || trimmed.includes('\\')){ toast('文件名不能包含路径分隔符'); return; }
-    const fp = findParent(path);
-    if ((fp.parent.children || []).some(c => c !== node && c.name === trimmed)){ toast('同名文件已存在'); return; }
-    node.name = trimmed;
-    node.untitled = false;
-    const newPath = joinPath(dirOf(path), trimmed);
-    if (state.langs[path]){ state.langs[newPath] = state.langs[path]; delete state.langs[path]; }
-    state.tabs.forEach(t => { if (t.path === path) t.path = newPath; });
-    state.activePath = newPath;
-    path = newPath;
-  }
-  const tab = state.tabs.find(t => t.path === path);
-  if (tab) tab.dirty = false;
-  if (state.cm) state.cm.setOption('mode', modeForPath(path));
-  renderTabs(); renderTree(); updateBreadcrumb(); updateSaveLabel(); updateStatus(path);
-  saveProject();
-  toast('已保存 ' + basename(path));
-}
-
-/* ================= 文件操作 ================= */
-function newFile(parentDir){
-  const p = parentDir || dirOf(state.activePath || '/') || '/';
-  const parent = findNode(p);
-  if (!parent || parent.type !== 'folder'){ toast('目标文件夹不存在'); return; }
-  parent.children = parent.children || [];
-  let name = 'New_Code', i = 2;
-  while (parent.children.some(c => c.name === name)) name = 'New_Code ' + (i++);
-  parent.children.push({ name: name, type: 'file', content: '', untitled: true });
-  scheduleSave(); renderTree();
-  openFile(joinPath(p, name));
-  toast('已新建 ' + name + ' · Ctrl+K 选择语言，Ctrl+S 保存时命名');
-}
-async function newFolder(parentDir){
-  const p = parentDir || dirOf(state.activePath || '/') || '/';
-  const name = await showModal({ title: '新建文件夹', msg: '在 ' + p + ' 下创建文件夹：', placeholder: '文件夹名', okText: '创建' });
-  if (name === null) return;
-  const trimmed = name.trim();
-  if (!trimmed){ toast('文件夹名不能为空'); return; }
-  if (trimmed.includes('/') || trimmed.includes('\\')){ toast('名称不能包含路径分隔符'); return; }
-  const parent = findNode(p);
-  if (!parent || parent.type !== 'folder'){ toast('目标文件夹不存在'); return; }
-  if ((parent.children || []).some(c => c.name === trimmed)){ toast('同名文件夹已存在'); return; }
-  parent.children = parent.children || [];
-  parent.children.push({ name: trimmed, type: 'folder', expanded: true, children: [] });
-  scheduleSave(); renderTree();
-  toast('已创建文件夹 ' + trimmed);
-}
-/* 新建项目：重置为新的空项目（会关闭当前打开的文件） */
-async function newProject(){
-  const name = await showModal({ title: '新建项目', msg: '新建后将关闭当前打开的文件，当前未保存内容会丢失。\n输入新项目名称：', placeholder: '我的项目', okText: '新建' });
-  if (name === null) return;
-  const trimmed = name.trim() || '我的项目';
-  state.root = { name: trimmed, type: 'folder', expanded: true, children: [] };
-  state.tabs = []; state.activePath = null; state.langs = {}; state.filter = '';
-  hideEditor(); hidePreview();
-  renderTree(); renderTabs(); updateBreadcrumb(); updateStatusCount(); updateSaveLabel();
-  saveProject();
-  toast('已新建项目「' + trimmed + '」，新建文件开始编写');
-}
-async function renameNode(path){
-  const node = findNode(path); if (!node) return;
-  const name = await showModal({ title: '重命名', msg: '当前名称：' + node.name, value: node.name, okText: '重命名' });
-  if (name === null || name === node.name) return;
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  if (trimmed.includes('/') || trimmed.includes('\\')){ toast('名称不能包含路径分隔符'); return; }
-  const fp = findParent(path);
-  if ((fp.parent.children || []).some(c => c.name === trimmed)){ toast('同名文件已存在'); return; }
-  node.name = trimmed;
-  node.untitled = false;
-  const newPath = joinPath(dirOf(path), trimmed);
-  if (state.langs[path]){ state.langs[newPath] = state.langs[path]; delete state.langs[path]; }
-  state.tabs.forEach(t => {
-    if (t.path === path || t.path.startsWith(path + '/')) t.path = newPath + t.path.slice(path.length);
-  });
-  if (state.activePath && (state.activePath === path || state.activePath.startsWith(path + '/')))
-    state.activePath = newPath + (state.activePath === path ? '' : state.activePath.slice(path.length));
-  scheduleSave(); renderTree(); renderTabs(); updateBreadcrumb(); updateSaveLabel();
-  if (state.activePath) updateStatus(state.activePath);
-  toast('已重命名为 ' + trimmed);
-}
-async function deleteNode(path){
-  const node = findNode(path); if (!node) return;
-  const kind = node.type === 'folder' ? '文件夹' : '文件';
-  const ok = await showModal({ title: '删除' + kind, msg: '确定要删除「' + node.name + '」吗？该操作不可撤销。', okText: '删除' });
-  if (!ok) return;
-  const fp = findParent(path);
-  fp.parent.children = fp.parent.children.filter(c => c.name !== fp.name);
-  state.tabs = state.tabs.filter(t => !(t.path === path || t.path.startsWith(path + '/')));
-  if (state.activePath && (state.activePath === path || state.activePath.startsWith(path + '/'))){
-    state.activePath = state.tabs.length ? state.tabs[state.tabs.length - 1].path : null;
-    if (state.activePath) applyEditor(state.activePath); else hideEditor();
-  }
-  scheduleSave(); renderTree(); renderTabs(); updateBreadcrumb(); updateSaveLabel();
-  if (state.activePath) updateStatus(state.activePath);
-  toast('已删除 ' + node.name);
-}
-async function duplicateFile(path){
-  const node = findNode(path); if (!node || node.type !== 'file') return;
-  const fp = findParent(path);
-  const base = node.name.replace(/\.[^.]+$/, '');
-  const ext = (node.name.match(/\.[^.]+$/) || [''])[0];
-  let name = base + ' 副本' + ext, i = 2;
-  while ((fp.parent.children || []).some(c => c.name === name)) name = base + ' 副本' + (i++) + ext;
-  fp.parent.children.push({ name, type: 'file', content: node.content, untitled: !!node.untitled });
-  scheduleSave(); renderTree();
-  openFile(joinPath(dirOf(path), name));
-  toast('已复制为 ' + name);
-}
-function downloadFile(path){
-  const node = findNode(path); if (!node || node.type !== 'file') return;
-  const blob = new Blob([node.content], { type: 'text/plain;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = node.name;
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-}
-
-/* ================= 右键菜单 ================= */
-function showCtxMenu(x, y, target){
-  state.ctxTarget = target;
-  const menu = $('#ctx-menu'); menu.textContent = '';
-  const addItem = (label, svgKey, fn, danger) => {
-    const it = el('div', 'ctx-item' + (danger ? ' danger' : ''));
-    const sp = document.createElement('span'); sp.innerHTML = ICONS[svgKey];
-    it.appendChild(sp); it.appendChild(document.createTextNode(label));
-    it.addEventListener('click', () => { hideCtxMenu(); fn(); });
-    menu.appendChild(it);
-  };
-  const addSep = () => menu.appendChild(el('div', 'ctx-sep'));
-  if (target.type === 'folder'){
-    addItem('新建文件', 'newFile', () => newFile(target.path));
-    addItem('新建文件夹', 'newFolder', () => newFolder(target.path));
-    addSep();
-    addItem('重命名', 'edit', () => renameNode(target.path));
-    addItem('删除', 'trash', () => deleteNode(target.path), true);
-  } else if (target.type === 'file'){
-    addItem('打开', 'file', () => openFile(target.path));
-    addSep();
-    addItem('重命名', 'edit', () => renameNode(target.path));
-    addItem('复制', 'copy', () => duplicateFile(target.path));
-    addItem('下载文件', 'download', () => downloadFile(target.path));
-    addSep();
-    addItem('删除', 'trash', () => deleteNode(target.path), true);
-  } else {
-    addItem('新建文件', 'newFile', () => newFile('/'));
-    addItem('新建文件夹', 'newFolder', () => newFolder('/'));
-    addSep();
-    addItem('折叠全部', 'chevron', () => { collapseAll(state.root); renderTree(); });
-  }
-  menu.classList.add('show');
-  const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = Math.max(4, Math.min(x, window.innerWidth - mw - 8)) + 'px';
-  menu.style.top = Math.max(4, Math.min(y, window.innerHeight - mh - 34)) + 'px';
-}
-function hideCtxMenu(){ $('#ctx-menu').classList.remove('show'); }
-function collapseAll(node){
-  if (node.type === 'folder'){ node.expanded = false; (node.children || []).forEach(collapseAll); }
-}
-
-/* ================= 语言选择 ================= */
-function showLangMenu(){
-  if (!state.activePath) return;
-  const menu = $('#lang-menu'); menu.textContent = '';
-  const cur = state.langs[state.activePath] || langByMode(modeFor(state.activePath));
-  LANGS.forEach(lg => {
-    const it = el('div', 'lang-item' + (cur && cur.label === lg.label ? ' active' : ''));
-    it.textContent = lg.label;
-    it.addEventListener('click', () => { hideLangMenu(); setLangFor(state.activePath, lg); });
-    menu.appendChild(it);
-  });
-  menu.classList.add('show');
-  const rect = $('#st-lang').getBoundingClientRect();
-  const mh = menu.offsetHeight;
-  menu.style.left = Math.max(4, rect.left) + 'px';
-  menu.style.top = Math.max(4, rect.top - mh - 6) + 'px';
-}
-function hideLangMenu(){ $('#lang-menu').classList.remove('show'); }
-function setLangFor(path, lang){
-  state.langs[path] = lang;
-  if (path === state.activePath){
-    if (state.cm) state.cm.setOption('mode', lang.mode);
-    updateStatus(path);
-  }
-  scheduleSave();
-  toast('已切换为 ' + lang.label + (lang.ext ? '（保存时建议扩展名 ' + lang.ext + '）' : ''));
-}
-
-/* ================= 外观 ================= */
-const FONT_VALUES = {
-  'default': "'Consolas','Courier New',ui-monospace,monospace",
-  "'JetBrains Mono',Consolas,monospace": "'JetBrains Mono',Consolas,monospace",
-  "'Fira Code',Consolas,monospace": "'Fira Code',Consolas,monospace",
-  "'Source Code Pro',Consolas,monospace": "'Source Code Pro',Consolas,monospace",
-  "'Cascadia Code',Consolas,monospace": "'Cascadia Code',Consolas,monospace",
-  "'IBM Plex Mono',Consolas,monospace": "'IBM Plex Mono',Consolas,monospace",
-  "'Noto Sans Mono',Consolas,monospace": "'Noto Sans Mono',Consolas,monospace",
-  "'Ubuntu Mono',Consolas,monospace": "'Ubuntu Mono',Consolas,monospace",
-  "'DejaVu Sans Mono',Consolas,monospace": "'DejaVu Sans Mono',Consolas,monospace",
-  "'Hack',Consolas,monospace": "'Hack',Consolas,monospace",
-  "'Droid Sans Mono',Consolas,monospace": "'Droid Sans Mono',Consolas,monospace",
-  "'Inconsolata',Consolas,monospace": "'Inconsolata',Consolas,monospace",
-  "'Roboto Mono',Consolas,monospace": "'Roboto Mono',Consolas,monospace",
-  "'SF Mono',Menlo,Consolas,monospace": "'SF Mono',Menlo,Consolas,monospace",
-  "Menlo,Monaco,Consolas,monospace": "Menlo,Monaco,Consolas,monospace",
-  "'Monaco',Consolas,monospace": "'Monaco',Consolas,monospace",
-  "'Andale Mono',Consolas,monospace": "'Andale Mono',Consolas,monospace",
-  "'Liberation Mono',Consolas,monospace": "'Liberation Mono',Consolas,monospace",
-  "'PT Mono',Consolas,monospace": "'PT Mono',Consolas,monospace",
-  "'Iosevka',Consolas,monospace": "'Iosevka',Consolas,monospace",
-  "'Fantasque Sans Mono',Consolas,monospace": "'Fantasque Sans Mono',Consolas,monospace",
-  "'Victor Mono',Consolas,monospace": "'Victor Mono',Consolas,monospace",
-  "'Sarasa Mono SC',Consolas,monospace": "'Sarasa Mono SC',Consolas,monospace",
-  "Consolas,monospace": "Consolas,monospace",
-  "'Courier New',monospace": "'Courier New',monospace",
-};
-function applyFontFamily(){
-  const fam = FONT_VALUES[state.fontFamily] || FONT_VALUES['default'];
-  document.documentElement.style.setProperty('--editor-font', fam);
-  const host = state.cm ? state.cm.getWrapperElement() : $('#cm-textarea');
-  if (host) host.style.fontFamily = fam;
-}
-function setFontFamily(v){
-  if (!FONT_VALUES[v]) return;
-  state.fontFamily = v;
-  applyFontFamily();
-  if (document.getElementById('set-fontfamily')) $('#set-fontfamily').value = v;
-  scheduleSave();
-}
-function applyFontSize(){
-  if (state.cm) state.cm.getWrapperElement().style.fontSize = state.fontSize + 'px';
-  else $('#cm-textarea').style.fontSize = state.fontSize + 'px';
-}
-function setFontSize(n){
-  state.fontSize = Math.min(24, Math.max(11, Math.round(n)));
-  applyFontSize();
-  if (document.getElementById('set-fontsize')) $('#set-fontsize').value = state.fontSize;
-  scheduleSave();
-}
-function changeFontSize(d){ setFontSize(state.fontSize + d); }
-function applyHintSize(){
-  document.documentElement.style.setProperty('--hint-size', state.hintSize + 'px');
-  if (state.cm) state.cm.refresh();
-}
-function setHintSize(n){
-  state.hintSize = Math.min(24, Math.max(10, Math.round(Number(n)) || 13));
-  applyHintSize();
-  if (document.getElementById('set-hintsize')) $('#set-hintsize').value = state.hintSize;
-  scheduleSave();
-}
-function applyTabSize(){
-  if (state.cm){
-    state.cm.setOption('tabSize', state.tabSize);
-    state.cm.setOption('indentUnit', state.tabSize);
-    state.cm.refresh();
-  }
-}
-function setTabSize(n){
-  n = Math.min(8, Math.max(1, Math.round(Number(n)) || 4));
-  state.tabSize = n;
-  applyTabSize();
-  if (document.getElementById('set-tabsize')) $('#set-tabsize').value = n;
-  scheduleSave();
-}
-const mqTheme = window.matchMedia('(prefers-color-scheme: dark)');
-function effectiveTheme(){ return state.theme === 'system' ? (mqTheme.matches ? 'dark' : 'light') : state.theme; }
-/* 各配色方案的默认 token 色（用于配色自定义面板的初始值） */
-const PALETTE_TOKENS = {
-  vscode: { keyword:'#C586C0', type:'#4EC9B0', number:'#B5CEA8', string:'#CE9178', comment:'#6A9955', variable2:'#9CDCFE', operator:'#D4D4D4', error:'#F44747' },
-  matrix: { keyword:'#00ff41', type:'#3dffa0', number:'#a5ff90', string:'#b3ff8f', comment:'#4d7c4d', variable2:'#80ff80', operator:'#9fff9f', error:'#ff5555' },
-  vstudio: { keyword:'#0000ff', type:'#2b91af', number:'#098658', string:'#a31515', comment:'#008000', variable2:'#0000ff', operator:'#1e1e1e', error:'#e51400' },
-};
-const CP_CLASSES = [
-  ['keyword','关键词'],['type','类型'],['number','数字'],['string','字符串'],
-  ['comment','注释'],['variable2','变量'],['operator','运算符'],['error','错误'],
-];
-function applyCustomTokens(){
-  let el = document.getElementById('custom-tokens-style');
-  if (!el){ el = document.createElement('style'); el.id = 'custom-tokens-style'; document.head.appendChild(el); }
-  const css = Object.keys(state.customTokens).map(cls =>
-    '.cm-s-ide .cm-' + cls + '{color:' + state.customTokens[cls] + ' !important}'
-  ).join('\n');
-  el.textContent = css;
-}
-function applyPalette(){
-  document.documentElement.dataset.palette = state.palette;
-  applyCustomTokens();
-  if (state.cm) state.cm.refresh();
-}
-function setPalette(p){
-  if (!['vscode', 'matrix', 'vstudio'].includes(p)) return;
-  state.palette = p;
-  applyPalette();
-  syncSettingsUI();
-  scheduleSave();
-}
-function currentTokenColor(cls){
-  if (state.customTokens[cls]) return state.customTokens[cls];
-  return (PALETTE_TOKENS[state.palette] && PALETTE_TOKENS[state.palette][cls]) || '#ffffff';
-}
-function renderCustomPalette(){
-  const box = document.getElementById('cp-list'); if (!box) return;
-  box.textContent = '';
-  CP_CLASSES.forEach(function(pair){
-    const cls = pair[0], name = pair[1];
-    const row = el('div', 'cp-row');
-    const nm = el('span', 'cp-name', name);
-    const ctrl = el('div', 'cp-ctrl');
-    const col = document.createElement('input');
-    col.type = 'color'; col.value = currentTokenColor(cls); col.title = cls;
-    col.addEventListener('input', function(){
-      state.customTokens[cls] = col.value;
-      applyCustomTokens();
-      const hex = document.getElementById('cp-hex-' + cls);
-      if (hex) hex.textContent = col.value;
-      scheduleSave();
-    });
-    const hex = el('span', 'cp-hex', currentTokenColor(cls)); hex.id = 'cp-hex-' + cls;
-    ctrl.appendChild(col); ctrl.appendChild(hex);
-    row.appendChild(nm); row.appendChild(ctrl);
-    box.appendChild(row);
-  });
-}
-function openCustomPalette(){ renderCustomPalette(); $('#custom-palette').classList.add('show'); }
-function closeCustomPalette(){ $('#custom-palette').classList.remove('show'); }
-function applyTheme(){
-  $('#app').dataset.theme = effectiveTheme();
-  updateThemeBtn();
-  if (state.cm) state.cm.refresh();
-}
-function setTheme(t){
-  state.theme = t;
-  applyTheme();
-  syncSettingsUI();
-  scheduleSave();
-}
-function toggleTheme(){
-  const order = ['dark', 'light', 'system'];
-  const i = order.indexOf(state.theme);
-  setTheme(order[(i + 1) % 3]);
-}
-function updateThemeBtn(){
-  const t = state.theme;
-  $('#btn-theme').innerHTML = t === 'dark' ? ICONS.sun : (t === 'light' ? ICONS.moon : ICONS.auto);
-  $('#btn-theme').title = t === 'dark' ? '主题：深色（点击切换为浅色）'
-    : (t === 'light' ? '主题：浅色（点击切换为深色）' : '主题：跟随系统（点击切换）');
-}
-function openSettings(){ syncSettingsUI(); $('#settings').classList.add('show'); }
-function closeSettings(){ $('#settings').classList.remove('show'); }
-const LANG_VERSIONS = {
-  cpp: { label: 'C++', note: '编译时使用对应标准', list: [
-    { v: 'c++98', n: 'C++98' }, { v: 'c++11', n: 'C++11' }, { v: 'c++14', n: 'C++14' },
-    { v: 'c++17', n: 'C++17' }, { v: 'c++20', n: 'C++20' }, { v: 'c++23', n: 'C++23' } ] },
-  c: { label: 'C', note: '编译时使用对应标准', list: [
-    { v: 'c89', n: 'C89 / C90' }, { v: 'c99', n: 'C99' }, { v: 'c11', n: 'C11' }, { v: 'c17', n: 'C17' } ] },
-  js: { label: 'JavaScript', note: '仅标注，运行时不受限制', list: [
-    { v: 'es5', n: 'ES5' }, { v: 'es6', n: 'ES6 (2015)' }, { v: 'es2017', n: 'ES2017' },
-    { v: 'es2020', n: 'ES2020' }, { v: 'es2022', n: 'ES2022' } ] },
-  python: { label: 'Python', note: '运行时固定为 Pyodide 3.10', list: [
-    { v: '3.8', n: '3.8' }, { v: '3.9', n: '3.9' }, { v: '3.10', n: '3.10' }, { v: '3.11', n: '3.11' }, { v: '3.12', n: '3.12' } ] },
-};
-function renderLangVerOptions(){
-  const sel = document.getElementById('set-langver'); if (!sel) return;
-  const key = document.getElementById('set-langkey').value;
-  const conf = LANG_VERSIONS[key] || LANG_VERSIONS.cpp;
-  sel.textContent = '';
-  conf.list.forEach(o => {
-    const op = el('option', '', o.n); op.value = o.v;
-    if (state.langVer[key] === o.v) op.selected = true;
-    sel.appendChild(op);
-  });
-  const note = document.getElementById('set-langver-note');
-  if (note) note.textContent = conf.note;
-}
-function syncSettingsUI(){
-  $$('input[name="set-theme"]').forEach(r => { r.checked = (r.value === state.theme); });
-  $$('input[name="set-palette"]').forEach(r => { r.checked = (r.value === state.palette); });
-  $$('input[name="set-check"]').forEach(r => { r.checked = (r.value === 'opensave' ? state.checkOpen : state.checkNewline); });
-  if (document.getElementById('set-fontsize')) $('#set-fontsize').value = state.fontSize;
-  if (document.getElementById('set-hintsize')) $('#set-hintsize').value = state.hintSize;
-  if (document.getElementById('set-tabsize')) $('#set-tabsize').value = state.tabSize;
-  if (document.getElementById('set-fontfamily')) $('#set-fontfamily').value = state.fontFamily;
-  renderLangVerOptions();
-}
-/* ================= 语法检查 ================= */
-let syntaxTimer = null;
-function lintPairs(code){
-  const errs = [];
-  const stack = [];
-  const pairs = { ')':'(', ']':'[', '}':'{' };
-  const opens = { '(':'(', '[':'[', '{':'{' };
-  let i = 0, line = 1, inStr = null, inBlock = false;
-  while (i < code.length){
-    const ch = code[i], nx = code[i + 1];
-    if (inBlock){
-      if (ch === '*' && nx === '/'){ inBlock = false; i += 2; }
-      else { if (ch === '\n') line++; i++; }
-      continue;
-    }
-    if (inStr){
-      if (ch === '\\'){ i += 2; continue; }
-      if (ch === inStr){ inStr = null; }
-      else if (ch === '\n'){ line++; inStr = null; errs.push('第 ' + line + ' 行：字符串未闭合'); }
-      i++;
-      continue;
-    }
-    if (ch === '/' && nx === '/'){ while (i < code.length && code[i] !== '\n') i++; continue; }
-    if (ch === '/' && nx === '*'){ inBlock = true; i += 2; continue; }
-    if (ch === '"' || ch === "'" || ch === '`'){ inStr = ch; i++; continue; }
-    if (ch === '\n'){ line++; i++; continue; }
-    if (opens[ch]) stack.push({ c: ch, line });
-    else if (pairs[ch]){
-      if (!stack.length || stack[stack.length - 1].c !== pairs[ch]) errs.push('第 ' + line + ' 行：多余的 ' + ch);
-      else stack.pop();
-    }
-    i++;
-  }
-  if (inBlock) errs.push('块注释 /* 未闭合');
-  stack.forEach(s => errs.push('第 ' + s.line + ' 行：' + (s.c === '(' ? '(' : s.c === '[' ? '[' : '{') + ' 未闭合'));
-  return errs;
-}
-function checkSyntax(code, path){
-  const ext = (path.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-  if (ext === '.js' || ext === '.mjs'){
-    try { new Function(code); return { ok: true }; }
-    catch (e){ return { ok: false, msg: String(e.message || e) }; }
-  }
-  if (ext === '.html' || ext === '.htm'){
-    try {
-      const d = new DOMParser().parseFromString(code, 'text/html');
-      if (d.querySelector('parsererror')) return { ok: false, msg: 'HTML 解析错误（标签未闭合等）' };
-      return { ok: true };
-    } catch (e){ return { ok: false, msg: String(e.message || e) }; }
-  }
-  if (ext === '.css'){
-    try {
-      const s = document.createElement('style'); s.textContent = code;
-      void (s.sheet && s.sheet.cssRules);
-      return { ok: true };
-    } catch (e){ return { ok: false, msg: String(e.message || e) }; }
-  }
-  const errs = lintPairs(code);
-  if (errs.length) return { ok: false, msg: errs[0] + '（共 ' + errs.length + ' 处）' };
-  return { ok: true };
-}
-function runSyntaxCheck(){
-  const el = $('#st-syntax'); if (!el) return;
-  if ((!state.checkOpen && !state.checkNewline) || !state.activePath){
-    el.textContent = ''; el.title = ''; return;
-  }
-  const node = findNode(state.activePath);
-  if (!node) return;
-  const code = state.cm ? state.cm.getValue() : $('#cm-textarea').value;
-  const r = checkSyntax(code, state.activePath);
-  if (r.ok){
-    el.textContent = '✓ 语法 OK'; el.style.color = 'var(--ok)'; el.title = '';
-  } else {
-    el.textContent = '! 语法错误'; el.style.color = 'var(--err)'; el.title = r.msg;
-  }
-}
-function scheduleSyntaxCheck(){
-  clearTimeout(syntaxTimer);
-  syntaxTimer = setTimeout(runSyntaxCheck, 500);
-}
-/* ================= JS 沙箱运行 ================= */
-function ensureRunner(){
-  if (state.runner) return state.runner;
-  const f = document.createElement('iframe');
-  f.id = 'js-runner';
-  f.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden';
-  document.body.appendChild(f);
-  state.runner = f;
-  return f;
-}
-function runJS(code){
-  const f = ensureRunner();
-  f.sandbox = 'allow-scripts';
-  const safeCode = code.replace(/<\/script/gi, '<\\/script');
-  const html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' +
-'<script>' +
-'(function(){' +
-'  var post = function(t, args){' +
-'    try{ parent.postMessage({__ide:true, type:t, args:args.map(function(a){' +
-'      if (a === null) return "null";' +
-'      if (typeof a === "object"){ try{ return JSON.stringify(a); }catch(e){ return String(a); } }' +
-'      if (typeof a === "function") return "[Function]";' +
-'      return String(a);' +
-'    })}, "*"); }catch(e){}' +
-'  };' +
-'  console.log = function(){ post("log", Array.prototype.slice.call(arguments)); };' +
-'  console.info = function(){ post("info", Array.prototype.slice.call(arguments)); };' +
-'  console.warn = function(){ post("warn", Array.prototype.slice.call(arguments)); };' +
-'  console.error = function(){ post("error", Array.prototype.slice.call(arguments)); };' +
-'  window.onerror = function(msg, src, line){ post("error", [msg + "（第 " + line + " 行）"]); return false; };' +
-'  window.addEventListener("unhandledrejection", function(e){' +
-'    post("error", ["未处理的 Promise 拒绝：" + ((e.reason && e.reason.message) || String(e.reason))]);' +
-'  });' +
-'})();' +
-'<\/script>' +
-'<script>' +
-'try{ ' + safeCode + ' }' +
-'catch(err){ parent.postMessage({__ide:true, type:"error", args:[(err && err.message) || String(err)]}, "*"); }' +
-'<\/script></body></html>';
-  f.srcdoc = html;
-  out('运行 ' + state.activePath + '，输出如下：', 'info');
-}
-
-/* ================= HTML 预览 ================= */
-function resolveProjectHtml(entryPath){
-  const node = findNode(entryPath);
-  if (!node || node.type !== 'file') return '<!DOCTYPE html><html><body><p style="font-family:sans-serif;padding:20px">未找到页面文件。</p></body></html>';
-  let html = node.content;
-  const base = dirOf(entryPath);
-  html = html.replace(/<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi, (m, href) => {
-    const cssNode = findNode(joinPath(base, href));
-    if (cssNode && cssNode.type === 'file') return '<style>\n' + cssNode.content + '\n</style>';
-    return m;
-  });
-  html = html.replace(/<script[^>]+src=["']([^"']+)["'][^>]*><\/script>/gi, (m, src) => {
-    const jsNode = findNode(joinPath(base, src));
-    if (jsNode && jsNode.type === 'file') return '<script>\n' + jsNode.content + '\n<\/script>';
-    return m;
-  });
-  return html;
-}
-function showPreview(html){
-  const pv = $('#preview'); pv.hidden = false;
-  $('#pv-frame').srcdoc = html;
-  out('已在右侧打开页面预览。', 'ok');
-}
-function hidePreview(){ $('#preview').hidden = true; }
-
-/* ================= Python 运行（Pyodide 按需加载） ================= */
-function loadScript(src){
-  return new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = () => res();
-    s.onerror = () => rej(new Error('加载失败：' + src));
-    document.head.appendChild(s);
-  });
-}
-async function runPython(code){
-  if (!state.pyLoaded){
-    if (state.pyLoading){ out('Python 运行时正在加载，请稍候…', 'warn'); return; }
-    state.pyLoading = true;
-    out('首次运行 Python 需加载运行时（约 10MB，需联网），请稍候…', 'info');
-    let lastErr = null;
-    for (const host of CDN_MIRRORS){
-      try {
-        const base = 'https://' + host + '/pyodide/v0.24.1/full/';
-        await loadScript(base + 'pyodide.js');
-        if (!window.loadPyodide) throw new Error('Pyodide 脚本加载异常');
-        state.py = await loadPyodide({ indexURL: base });
-        try {
-          state.py.setStdout({ batched: s => out(s, 'system') });
-          state.py.setStderr({ batched: s => out(s, 'err') });
-        } catch (e) { /* 忽略 stdout 配置差异 */ }
-        state.pyLoaded = true;
-        break;
-      } catch (e){ lastErr = e; }
-    }
-    if (!state.pyLoaded){
-      out('Python 运行时加载失败：' + ((lastErr && lastErr.message) || lastErr) + '（需要联网访问 jsDelivr，请检查网络后重试）', 'err');
-      state.pyLoading = false;
-      return;
-    }
-  }
-  try {
-    await state.py.runPythonAsync(code);
-    out('Python 执行完成。', 'ok');
-  } catch (e) {
-    out((e && e.message) || String(e), 'err');
-  }
-}
-
-/* ================= 运行分发 ================= */
-function runActive(){
-  if (!state.activePath){ out('请先在左侧打开一个文件，再点击「运行」。', 'warn'); return; }
-  const p = state.activePath;
-  const node = findNode(p);
-  if (!node) return;
-  if (state.cm) node.content = state.cm.getValue();
-  else node.content = $('#cm-textarea').value;
-  const ext = (p.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-  if (ext === '.html' || ext === '.htm'){
-    state.previewPath = p;
-    showPreview(resolveProjectHtml(p));
-  } else if (ext === '.js' || ext === '.mjs'){
-    runJS(node.content);
-  } else if (ext === '.py'){
-    runPython(node.content);
-  } else if (ext === '.c' || ext === '.h'){
-    runCpp(node.content, basename(p), 'c');
-  } else if (ext === '.cpp' || ext === '.cc' || ext === '.cxx' || ext === '.hpp'){
-    runCpp(node.content, basename(p), 'cpp');
-  } else if (ext === '.css'){
-    out('CSS 不能独立运行。打开 index.html 后点击「运行」可预览页面效果。', 'warn');
-  } else {
-    out('该文件类型暂不支持运行（' + modeFor(p) + '），试试 HTML / JS / Python 文件。', 'warn');
-  }
-}
-
-/* ================= 导入 / 导出 / 打包 ================= */
-function exportProject(){
-  const blob = new Blob([JSON.stringify({ version: 1, root: state.root }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (state.root.name || '项目').replace(/[\\/:*?"<>|]/g, '_') + '.json';
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast('已导出项目 JSON');
-}
-/* 导出当前文件（原样下载） */
-function exportFile(){
-  if (!state.activePath){ toast('请先打开要导出的文件'); return; }
-  const p = state.activePath;
-  const node = findNode(p);
-  if (!node) return;
-  const content = state.cm ? state.cm.getValue() : $('#cm-textarea').value;
-  downloadBlob(content, node.name, 'text/plain;charset=utf-8');
-  toast('已导出文件 ' + node.name);
-}
-/* 导出全部设置（含项目）为 TXT */
-function exportSettingsTxt(){
-  const data = {
-    app: 'doubao-ide', format: 'settings-backup', version: 4,
-    settings: {
-      theme: state.theme, palette: state.palette, fontSize: state.fontSize,
-      hintSize: state.hintSize, fontFamily: state.fontFamily, tabSize: state.tabSize,
-      checkOpen: state.checkOpen, checkNewline: state.checkNewline, customTokens: state.customTokens, langVer: state.langVer,
-    },
-    project: state.root,
-  };
-  downloadBlob(JSON.stringify(data, null, 2), '豆沙包IDE设置备份.txt', 'text/plain;charset=utf-8');
-  toast('已导出设置备份 TXT（含全部项目）');
-}
-/* 导入设置 TXT：覆盖设置与项目（已提前提醒） */
-function importSettingsTxt(file){
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const d = JSON.parse(reader.result);
-      if (!d || d.app !== 'doubao-ide' || !d.project || d.project.type !== 'folder') throw new Error('不是有效的豆沙包 IDE 设置备份文件');
-      const s = d.settings || {};
-      state.theme = (s.theme === 'light' || s.theme === 'system') ? s.theme : 'dark';
-      state.palette = (['vscode', 'matrix', 'vstudio'].includes(s.palette)) ? s.palette : 'vscode';
-      state.fontSize = Number(s.fontSize) || 14;
-      state.hintSize = Number(s.hintSize) || 13;
-      state.fontFamily = s.fontFamily || 'default';
-      state.tabSize = Math.min(8, Math.max(1, Number(s.tabSize) || 4));
-      if (s.checkOpen === true || s.checkOpen === false) state.checkOpen = s.checkOpen;
-      if (s.checkNewline === true || s.checkNewline === false) state.checkNewline = s.checkNewline;
-      else if (s.checkMode === 'opensave'){ state.checkOpen = true; state.checkNewline = false; }
-      else if (s.checkMode === 'newline'){ state.checkOpen = false; state.checkNewline = true; }
-      else if (s.checkMode === 'none'){ state.checkOpen = false; state.checkNewline = false; }
-      state.customTokens = (s.customTokens && typeof s.customTokens === 'object') ? s.customTokens : {};
-      if (s.langVer && typeof s.langVer === 'object'){
-        Object.keys(state.langVer).forEach(k => { if (s.langVer[k]) state.langVer[k] = s.langVer[k]; });
-      }
-      state.root = d.project;
-      state.tabs = []; state.activePath = null; state.langs = {};
-      applyPalette(); setTheme(state.theme); applyFontFamily(); applyHintSize(); applyTabSize();
-      hideEditor(); hidePreview();
-      renderTree(); renderTabs(); updateBreadcrumb(); updateStatusCount(); updateSaveLabel();
-      saveProject();
-      toast('已导入设置与项目');
-      out('设置导入完成：主题、字体、语法检查、语言版本与全部项目文件已恢复。', 'ok');
-    } catch (e) {
-      out('导入失败：' + e.message, 'err');
-    }
-  };
-  reader.readAsText(file);
-}
-function downloadBlob(content, name, type){
-  const blob = new Blob([content], { type: type || 'application/octet-stream' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-}
-function importProject(file){
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const d = JSON.parse(reader.result);
-      if (!d || !d.root || d.root.type !== 'folder') throw new Error('不是有效的项目文件');
-      state.root = d.root;
-      state.tabs = []; state.activePath = null;
-      hideEditor(); hidePreview();
-      renderTree(); renderTabs(); updateBreadcrumb(); updateStatusCount(); updateSaveLabel();
-      saveProject();
-      toast('已导入项目');
-    } catch (e) {
-      out('导入失败：' + e.message, 'err');
-    }
-  };
-  reader.readAsText(file);
-}
-async function downloadZip(){
-  if (!window.JSZip){
-    out('正在加载打包组件（JSZip）…', 'info');
-    try { await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'); }
-    catch (e) { out('打包组件加载失败（需要联网）', 'err'); return; }
-  }
-  const zip = new JSZip();
-  (function addToZip(node, base){
-    (node.children || []).forEach(c => {
-      const p = base + c.name;
-      if (c.type === 'folder') addToZip(c, p + '/');
-      else zip.file(p, c.content);
-    });
-  })(state.root, '');
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (state.root.name || '项目').replace(/[\\/:*?"<>|]/g, '_') + '.zip';
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast('已打包下载');
-}
-
-/* ================= C / C++ 编译运行（浏览器内 WASI） ================= */
-async function ensureCpp(){
-  if (state.ccReady) return true;
-  if (state.ccBusy) return false;
-  state.ccBusy = true;
-  try {
-    out('首次使用 C/C++ 需要下载编译器（约 100MB，浏览器会自动缓存，之后更快），请耐心等待…', 'info');
-    const cc = await importCDN('https://cdn.jsdelivr.net/npm/browsercc@0.1.1/dist/index.js');
-    const shim = await importCDN('https://cdn.jsdelivr.net/npm/@bjorn3/browser_wasi_shim@0.4.2/dist/index.js');
-    state.ccCompile = cc;   // 导出 Clang/LLD/getCompilerInvocation/setUpSysroot
-    state.ccWasi = shim;
-    state.ccReady = true;
-    return true;
-  } catch (e){
-    out('C/C++ 编译器加载失败：' + ((e && e.message) || e) + '（需要联网访问 jsDelivr，请检查网络后重试）', 'err');
-    return false;
-  } finally {
-    state.ccBusy = false;
-  }
-}
-/* jsDelivr 多镜像容错：默认 cdn.jsdelivr.net 失败时自动尝试 fastly / gcore 镜像 */
-const CDN_MIRRORS = ['cdn.jsdelivr.net', 'fastly.jsdelivr.net', 'gcore.jsdelivr.net'];
-function cdnUrl(u, host){
-  return u.replace('cdn.jsdelivr.net', host);
-}
-async function importCDN(url){
-  let lastErr = null;
-  for (const host of CDN_MIRRORS){
-    try { return await import(cdnUrl(url, host)); }
-    catch (e){ lastErr = e; }
-  }
-  throw lastErr || new Error('CDN 加载失败');
-}
-async function fetchCDN(url, resType){
-  let lastErr = null;
-  for (const host of CDN_MIRRORS){
-    try {
-      const r = await fetch(cdnUrl(url, host));
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await (resType === 'arrayBuffer' ? r.arrayBuffer() : r.text());
-    } catch (e){ lastErr = e; }
-  }
-  throw lastErr || new Error('CDN 加载失败');
-}
-/* 解析 clang 驱动 -### 输出（与 browsercc compile 内部逻辑一致） */
-function ccGetArgs(lines, key){
-  const line = lines.find(l => l.includes(key)) || '';
-  const args = (line.match(/"([^"]*)"/g) || []).map(s => s.slice(1, -1)).slice(1);
-  const oIndex = args.findIndex(a => a === '-o');
-  return { args, outputFileName: args[oIndex + 1] };
-}
-/* 复用 clang/lld 实例的编译管线：首次下载 ~100MB，之后每次运行只做编译 */
-async function ccCompileCached(code, fileName, lang){
-  if (lang === 'cpp'){
-    // C++：直接用官方 compile()。fileName 必须带 .cpp 扩展名，
-    // 否则 clang++ 会按 C 语言编译 C++ 代码而报错（如 #include <iostream> 无法解析）。
-    const fname = /\.[a-z0-9]+$/i.test(fileName) ? fileName : fileName + '.cpp';
-    return state.ccCompile.compile({ source: code, fileName: fname, flags: ['-std=' + (state.langVer.cpp || 'c++17')] });
-  }
-  // C：clang++ 驱动把 .c 当 C++，必须用 -x c 且放在文件名之前，官方 compile() 不支持，这里自行驱动
-  if (!state.ccClang){
-    state.ccStderr = '';
-    state.ccClang = await state.ccCompile.Clang({ thisProgram: 'clang++', printErr: s => { state.ccStderr += s + '\n'; } });
-    state.ccLld = await state.ccCompile.LLD({ thisProgram: 'wasm-ld', printErr: s => { state.ccStderr += s + '\n'; } });
-    state.ccSysroot = await (await fetchCDN('https://cdn.jsdelivr.net/npm/browsercc@0.1.1/dist/sysroot.tar', 'arrayBuffer')).arrayBuffer();
-    state.ccCompile.setUpSysroot(state.ccClang, state.ccSysroot, []);
-    state.ccCompile.setUpSysroot(state.ccLld, state.ccSysroot, []);
-  }
-  const key = fileName + '|' + lang;
-  if (!state.ccInv[key]){
-    state.ccClang.FS.writeFile(fileName, '');
-    state.ccStderr = '';
-    const ret = state.ccClang.callMain(['-x', 'c', '-std=' + (state.langVer.c || 'c11'), fileName, '-###']);
-    if (ret !== 0) throw new Error('Clang 驱动失败，退出码 ' + ret);
-    const lines = state.ccStderr.split('\n');
-    const cc1 = ccGetArgs(lines, '-cc1');
-    const ld = ccGetArgs(lines, 'wasm-ld');
-    state.ccInv[key] = { compilerArgs: cc1.args, compilerArtifact: cc1.outputFileName, linkerArgs: ld.args, linerArtifact: ld.outputFileName };
-  }
-  const inv = state.ccInv[key];
-  state.ccStderr = '';
-  state.ccClang.FS.writeFile(fileName, code);
-  let ec = state.ccClang.callMain(inv.compilerArgs);
-  if (ec !== 0) return { compileOutput: state.ccStderr, module: null };
-  const binary = state.ccClang.FS.readFile(inv.compilerArtifact, { encoding: 'binary' });
-  state.ccLld.FS.writeFile(inv.compilerArtifact, binary);
-  ec = state.ccLld.callMain(inv.linkerArgs);
-  if (ec !== 0) return { compileOutput: state.ccStderr, module: null };
-  const output = state.ccLld.FS.readFile(inv.linerArtifact, { encoding: 'binary' });
-  return { compileOutput: state.ccStderr, module: await WebAssembly.compile(output) };
-}
-/* 运行 C/C++：stdin 供 CPH 调试传入测试输入 */
-async function runCpp(code, fileName, lang, stdin){
-  const ok = await ensureCpp();
-  if (!ok) return;
-  out('正在编译 ' + fileName + '（' + (lang === 'c' ? 'C' : 'C++') + '）…', 'info');
-  try {
-    const { module, compileOutput } = await ccCompileCached(code, fileName, lang);
-    if (compileOutput && compileOutput.trim()) out('编译器输出：\n' + compileOutput.trim(), 'system');
-    if (!module){
-      out('编译失败，请检查代码中的语法错误。', 'err');
-      return;
-    }
-    out('编译成功，正在运行…', 'info');
-    let output = '';
-    const { WASI, OpenFile, File, ConsoleStdout } = state.ccWasi;
-    const stdinBytes = new TextEncoder().encode(stdin || '');
-    const fds = [
-      new OpenFile(new File(stdinBytes)),
-      new ConsoleStdout(d => { output += new TextDecoder().decode(d); }),
-      new ConsoleStdout(d => { output += new TextDecoder().decode(d); }),
-    ];
-    const wasi = new WASI([], [], fds);
-    // 用同步构造器实例化：部分浏览器/环境下 instantiate(module, imports) 返回值异常
-    const instance = new WebAssembly.Instance(module, { wasi_snapshot_preview1: wasi.wasiImport });
-    const exitCode = wasi.start(instance);
-    if (output) out(output, 'system');
-    out('程序运行结束，退出码 ' + exitCode + '。', exitCode === 0 ? 'ok' : 'warn');
-    return { output, exitCode };
-  } catch (e){
-    out('运行出错：' + ((e && e.message) || e), 'err');
-    return { output: '', exitCode: -1, error: String((e && e.message) || e) };
-  }
-}
-
-/* ================= 导出可执行模块 ================= */
-/* 生成“文本查看器”C 程序：打印文本后等待人类可读完的时间 */
-function escCStr(s){ return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
-function buildTextViewerC(text){
-  const lines = String(text).split('\n');
-  let src = '#define _POSIX_C_SOURCE 199309L\n#include <stdio.h>\n#include <time.h>\n';
-  src += 'static long long now_ms(void){ struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return (long long)ts.tv_sec*1000 + ts.tv_nsec/1000000; }\n';
-  src += 'int main(void){ const char *s[] = {\n';
-  lines.forEach(l => { src += '  "' + escCStr(l) + '",\n'; });
-  src += '  "" };\n';
-  src += 'int n = sizeof(s)/sizeof(s[0]) - 1;\n';
-  src += 'for (int i = 0; i < n; i++) puts(s[i]);\n';
-  const secs = Math.max(3, Math.ceil(String(text).length / 8));
-  src += 'printf("\\n---- %d 秒后自动关闭 ----\\n", ' + secs + ');\n';
-  src += 'long long end = now_ms() + ' + (secs * 1000) + '; while (now_ms() < end) {}\n';
-  src += 'return 0;\n}\n';
-  return { src, secs };
-}
-/* 纯文本/其他类型：导出为自包含 HTML 查看器，打开即显示全文 */
-function buildTextViewerHtml(text){
-  const safe = String(text).replace(/<\/script/gi, '<\\/script');
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>文本查看器</title>' +
-    '<style>body{font-family:Consolas,"Courier New",monospace;margin:0;background:#1e1e1e;color:#d4d4d4}' +
-    '.bar{position:sticky;top:0;background:#252526;padding:8px 16px;border-bottom:1px solid #3c3c3c;font-size:13px;color:#9d9d9d;display:flex;justify-content:space-between;align-items:center}' +
-    'pre{white-space:pre-wrap;word-break:break-all;padding:16px;margin:0;font-size:14px;line-height:1.7}' +
-    'button{background:#007acc;color:#fff;border:none;padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px}</style>' +
-    '</head><body><div class="bar"><span>豆沙包 IDE · 文本查看器</span><button onclick="navigator.clipboard.writeText(document.getElementById(\'t\').textContent)">复制全文</button></div>' +
-    '<pre id="t">' + safe + '</pre></body></html>';
-}
-function buildJsRunnerHtml(code){
-  const safe = code.replace(/<\/script/gi, '<\\/script');
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>JS 运行器</title>' +
-    '<style>body{font-family:Consolas,"Courier New",monospace;margin:20px;background:#1e1e1e;color:#d4d4d4}pre{white-space:pre-wrap;word-break:break-all}code{display:block;margin-bottom:12px;color:#9cdcfe}</style>' +
-    '</head><body><pre>执行结果：</pre><pre id="out"></pre><script>' +
-    '(function(){ var out=document.getElementById("out"); var log=function(t){ out.textContent += String(t)+"\\n"; };' +
-    ' console.log=log; console.info=log; console.warn=log; console.error=log;' +
-    ' window.onerror=function(m,s,l){ out.textContent += "[错误] "+m+"（第 "+l+" 行）\\n"; return false; };' +
-    ' try{ ' + safe + ' }catch(e){ out.textContent += "[错误] "+(e&&e.message||e)+"\\n"; } })();' +
-    '<\/script></body></html>';
-}
-function buildPyRunnerHtml(code){
-  const safe = code.replace(/<\/script/gi, '<\\/script');
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Python 运行器</title>' +
-    '<style>body{font-family:Consolas,"Courier New",monospace;margin:20px;background:#1e1e1e;color:#d4d4d4}pre{white-space:pre-wrap;word-break:break-all}</style>' +
-    '</head><body><pre>Python 运行器（首次需联网加载约 10MB 运行时）</pre><pre id="out"></pre>' +
-    '<script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"><\/script>' +
-    '<script>var out=document.getElementById("out");' +
-    'async function run(){ try{ var py=await loadPyodide({indexURL:"https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"});' +
-    ' py.setStdout({batched:function(s){out.textContent+=s+"\\n";}});' +
-    ' py.setStderr({batched:function(s){out.textContent+="[错误] "+s+"\\n";}});' +
-    ' await py.runPythonAsync(' + JSON.stringify(code) + ');' +
-    ' }catch(e){ out.textContent += "[错误] "+(e&&e.message||e)+"\\n"; } } run();' +
-    '<\/script></body></html>';
-}
-async function exportExe(){
-  if (!state.activePath){ toast('请先打开文件'); return; }
-  const p = state.activePath;
-  const node = findNode(p);
-  if (!node) return;
-  if (state.cm) node.content = state.cm.getValue();
-  else node.content = $('#cm-textarea').value;
-  const ext = (p.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-  const base = basename(p).replace(/\.[^.]+$/, '');
-  if (ext === '.c' || ext === '.h' || ext === '.cpp' || ext === '.cc' || ext === '.cxx' || ext === '.hpp'){
-    const lang = (ext === '.cpp' || ext === '.cc' || ext === '.cxx') ? 'cpp' : 'c';
-    out('正在编译并导出可执行模块…', 'info');
-    const ok = await ensureCpp();
-    if (!ok) return;
-    try {
-      const { module } = await ccCompileCached(node.content, basename(p), lang);
-      if (!module){ out('编译失败，无法导出。', 'err'); return; }
-      const bytes = WebAssembly.Module.bytes(module);
-      downloadBlob(bytes, base + '.wasm', 'application/wasm');
-      out('已导出 WASI 可执行文件 ' + base + '.wasm（浏览器环境无法生成 Windows .exe，此文件可用 wasmtime / Node 的 WASI 支持运行）。', 'ok');
-      toast('已导出可执行模块');
-    } catch (e){
-      out('导出失败：' + ((e && e.message) || e), 'err');
-    }
-  } else if (ext === '.html' || ext === '.htm'){
-    const html = resolveProjectHtml(p);
-    downloadBlob(html, base + '.html', 'text/html;charset=utf-8');
-    toast('已导出独立 HTML 页面');
-  } else if (ext === '.js' || ext === '.mjs'){
-    downloadBlob(buildJsRunnerHtml(node.content), base + '.html', 'text/html;charset=utf-8');
-    out('已导出 JS 运行器页面（浏览器打开即可运行）。', 'ok');
-    toast('已导出 JS 运行器');
-  } else if (ext === '.py'){
-    downloadBlob(buildPyRunnerHtml(node.content), base + '.html', 'text/html;charset=utf-8');
-    out('已导出 Python 运行器页面（浏览器打开运行，首次需联网加载运行时）。', 'ok');
-    toast('已导出 Python 运行器');
-  } else {
-    // 纯文本及其他类型：导出为自包含 HTML 查看器，打开即显示全文
-    downloadBlob(buildTextViewerHtml(node.content), base + '.html', 'text/html;charset=utf-8');
-    out('已导出文本查看器 ' + base + '.html：浏览器打开即可查看全文（支持复制）。', 'ok');
-    toast('已导出文本查看器');
-  }
-}
-
-/* ================= 事件绑定 ================= */
-function toggleSidebar(){ $('#app').classList.toggle('side-collapsed'); }
-function togglePanel(){
-  const app = $('#app');
-  app.classList.toggle('panel-collapsed');
-  const collapsed = app.classList.contains('panel-collapsed');
-  $('#btn-panel').textContent = collapsed ? '展开' : '收起';
-  $('#st-panel').textContent = collapsed ? '展开输出' : '收起输出';
-}
-function onRunnerMessage(e){
-  if (e.data && e.data.__ide){
-    const args = e.data.args || [];
-    out(args.join(' '), { log: 'system', info: 'info', warn: 'warn', error: 'err' }[e.data.type] || 'system');
-  }
-}
-/* ================= 活动栏视图切换 ================= */
-function setActivity(view){
-  state.activity = view;
-  ['explorer', 'search', 'cph'].forEach(v => {
-    const ab = document.getElementById('ab-' + v);
-    const vw = document.getElementById('view-' + v);
-    if (ab) ab.classList.toggle('active', v === view);
-    if (vw) vw.classList.toggle('show', v === view);
-  });
-  if (view === 'search'){
-    const i = document.getElementById('sr-keyword');
-    if (i) i.focus();
-  }
-}
-/* ================= 搜索 ================= */
-function runSearch(){
-  const q = (document.getElementById('sr-keyword').value || '').trim();
-  const box = document.getElementById('search-results');
-  box.textContent = '';
-  if (!q){
-    box.appendChild(el('div', 'sr-empty', '输入关键字，搜索项目内文件名与内容。'));
-    return;
-  }
-  const files = [];
-  collectFiles(state.root, '/', files);
-  const hits = [];
-  const ql = q.toLowerCase();
-  files.forEach(p => {
-    const n = findNode(p);
-    if (!n || n.type !== 'file') return;
-    if (n.name.toLowerCase().includes(ql)){ hits.push({ p, line: 0, text: '（文件名匹配）' }); return; }
-    const content = String(n.content || '');
-    if (content.toLowerCase().includes(ql)){
-      const lines = content.split('\n');
-      for (let i = 0; i < lines.length; i++){
-        if (lines[i].toLowerCase().includes(ql)){
-          hits.push({ p, line: i + 1, text: lines[i].trim().slice(0, 90) });
-          break;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuo Drive — 简单、安全的私人网盘</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230969da'/%3E%3Ctext x='32' y='45' font-size='36' font-weight='bold' text-anchor='middle' fill='white' font-family='sans-serif'%3EF%3C/text%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      }
-    }
-  });
-  if (!hits.length){ box.appendChild(el('div', 'sr-empty', '未找到匹配「' + q + '」的文件。')); return; }
-  box.appendChild(el('div', 'sr-group', hits.length + ' 个结果'));
-  hits.forEach(h => {
-    const item = el('div', 'sr-item');
-    const nm = el('div', 'sr-name');
-    const svg = document.createElement('span');
-    svg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8l-5-5z"/><path d="M14 3v5h5"/></svg>';
-    nm.appendChild(svg);
-    nm.appendChild(document.createTextNode(h.p));
-    item.appendChild(nm);
-    if (h.line) item.appendChild(el('div', 'sr-line', '第 ' + h.line + ' 行：' + h.text));
-    item.addEventListener('click', () => { openFile(h.p); setActivity('explorer'); });
-    box.appendChild(item);
-  });
-}
-/* ================= CPH 调试 ================= */
-function setVerdict(t, cls){
-  const v = document.getElementById('cph-verdict');
-  if (!v) return;
-  v.textContent = t;
-  v.className = cls || '';
-}
-async function cphRun(){
-  const p = state.activePath;
-  const node = p && findNode(p);
-  if (!node || node.type !== 'file'){ setVerdict('请先打开一个 C / C++ 文件', 'wait'); return; }
-  if (state.cm) node.content = state.cm.getValue();
-  const ext = (p.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-  const input = document.getElementById('cph-input').value;
-  const expect = (document.getElementById('cph-expect').value || '').trim();
-  const isCpp = ['.cpp', '.cc', '.cxx', '.hpp'].includes(ext);
-  if (ext !== '.c' && ext !== '.h' && !isCpp){ setVerdict('CPH 目前支持 C / C++ 调试', 'wait'); return; }
-  setVerdict('编译运行中…', 'wait');
-  const r = await runCpp(node.content, basename(p), isCpp ? 'cpp' : 'c', input);
-  const outEl = document.getElementById('cph-result');
-  if (!r || r.error){ outEl.textContent = r ? String(r.error) : '运行失败'; setVerdict('运行出错', 'bad'); return; }
-  outEl.textContent = r.output;
-  if (expect){
-    const got = r.output.trim();
-    const norm = s => s.split('\n').map(x => x.trim()).filter(Boolean).join('\n');
-    const ok = got === expect || got.endsWith(expect) || norm(got) === norm(expect);
-    setVerdict(ok ? '✓ 通过' : '✗ 未通过（输出与预期不一致）', ok ? 'ok' : 'bad');
-  } else {
-    setVerdict('运行完成（退出码 ' + r.exitCode + '）', r.exitCode === 0 ? 'ok' : 'bad');
-  }
-}
-function onKeydown(e){
-  const mod = e.ctrlKey || e.metaKey;
-  if (mod && e.key === 's'){ e.preventDefault(); saveActive(); }
-  else if (mod && e.key === 'Enter'){ e.preventDefault(); runActive(); }
-  else if (mod && (e.key === 'b' || e.key === 'B')){ e.preventDefault(); toggleSidebar(); }
-  else if (mod && e.key === 'n'){ e.preventDefault(); newFile(dirOf(state.activePath || '/')); }
-  else if (mod && (e.key === 'k' || e.key === 'K')){ e.preventDefault(); if (state.activePath) showLangMenu(); }
-  else if (mod && e.shiftKey && (e.key === 'e' || e.key === 'E')){ e.preventDefault(); setActivity('explorer'); }
-  else if (mod && e.shiftKey && (e.key === 'f' || e.key === 'F')){ e.preventDefault(); setActivity('search'); }
-  else if (e.key === 'Escape'){
-    hideCtxMenu();
-    if ($('#modal').classList.contains('show')) closeModal(null);
-  }
-}
-function bindEvents(){
-  $('#btn-run').addEventListener('click', runActive);
-  $('#btn-theme').addEventListener('click', toggleTheme);
-  $('#btn-exe').addEventListener('click', exportExe);
-  $('#btn-settings').addEventListener('click', openSettings);
-  $('#settings-close').addEventListener('click', closeSettings);
-  $('#settings').addEventListener('click', e => { if (e.target === $('#settings')) closeSettings(); });
-  /* 活动栏 */
-  $('#ab-explorer').addEventListener('click', () => setActivity('explorer'));
-  $('#ab-search').addEventListener('click', () => setActivity('search'));
-  $('#ab-cph').addEventListener('click', () => setActivity('cph'));
-  $('#ab-settings').addEventListener('click', openSettings);
-  $('#sr-keyword').addEventListener('input', runSearch);
-  $('#cph-run-btn').addEventListener('click', cphRun);
-  /* 空状态按钮 */
-  $('#empty-new-file').addEventListener('click', () => newFile('/'));
-  $('#empty-new-folder').addEventListener('click', () => newFolder('/'));
-  $('#empty-new-project').addEventListener('click', newProject);
-  /* 配色自定义 */
-  $('#btn-custom-palette').addEventListener('click', openCustomPalette);
-  $('#cp-close').addEventListener('click', closeCustomPalette);
-  $('#cp-done').addEventListener('click', closeCustomPalette);
-  $('#cp-reset').addEventListener('click', () => {
-    state.customTokens = {};
-    applyCustomTokens();
-    renderCustomPalette();
-    scheduleSave();
-    toast('已恢复默认配色');
-  });
-  $$('input[name="set-theme"]').forEach(r => r.addEventListener('change', () => setTheme(r.value)));
-  $$('input[name="set-palette"]').forEach(r => r.addEventListener('change', () => setPalette(r.value)));
-  $$('input[name="set-check"]').forEach(r => r.addEventListener('change', () => {
-    if (r.value === 'opensave') state.checkOpen = r.checked;
-    else state.checkNewline = r.checked;
-    syncSettingsUI(); scheduleSave(); runSyntaxCheck();
-  }));
-  $('#set-fontfamily').addEventListener('change', e => setFontFamily(e.target.value));
-  $('#set-hintsize').addEventListener('change', e => setHintSize(e.target.value));
-  $('#set-hintsize').addEventListener('input', e => setHintSize(e.target.value));
-  $('#set-langkey').addEventListener('change', () => { renderLangVerOptions(); });
-  $('#set-langver').addEventListener('change', e => {
-    const key = $('#set-langkey').value;
-    state.langVer[key] = e.target.value;
-    syncSettingsUI(); scheduleSave();
-  });
-  $('#btn-export-settings').addEventListener('click', exportSettingsTxt);
-  $('#btn-import-settings').addEventListener('click', () => {
-    if (confirm('请先点击「导出为 TXT」备份当前设置与项目。\n导入 TXT 将覆盖当前全部设置和项目文件，覆盖后无法恢复。\n确定继续导入吗？')) $('#import-input').click();
-  });
-  $('#set-fontsize').addEventListener('change', e => setFontSize(e.target.value));
-  $('#set-fontsize').addEventListener('input', e => setFontSize(e.target.value));
-  $('#set-tabsize').addEventListener('change', e => setTabSize(e.target.value));
-  $('#set-tabsize').addEventListener('input', e => setTabSize(e.target.value));
-  $('#set-font-minus').addEventListener('click', () => setFontSize(state.fontSize - 1));
-  $('#set-font-plus').addEventListener('click', () => setFontSize(state.fontSize + 1));
-  $('#btn-export').addEventListener('click', exportFile);
-  $('#btn-zip').addEventListener('click', downloadZip);
-  $('#btn-import').addEventListener('click', () => $('#import-input').click());
-  $('#import-input').addEventListener('change', e => {
-    if (e.target.files[0]){
-      const f = e.target.files[0];
-      if (f.name.toLowerCase().endsWith('.txt')) importSettingsTxt(f);
-      else importProject(f);
-    }
-    e.target.value = '';
-  });
-  $('#btn-new-file').addEventListener('click', () => newFile(dirOf(state.activePath || '/')));
-  $('#btn-new-folder').addEventListener('click', () => newFolder(dirOf(state.activePath || '/')));
-  $('#btn-collapse').addEventListener('click', () => { collapseAll(state.root); renderTree(); });
-  $('#tree-filter').addEventListener('input', e => { state.filter = e.target.value; renderTree(); });
-  $('#tree').addEventListener('contextmenu', e => {
-    if (e.target === $('#tree') || e.target.classList.contains('tree-empty')){
-      e.preventDefault();
-      showCtxMenu(e.clientX, e.clientY, { type: 'root' });
-    }
-  });
-  const sbBtn = el('button', 'tb-btn');
-  sbBtn.id = 'btn-sidebar'; sbBtn.title = '折叠 / 展开侧栏（Ctrl+B）';
-  sbBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
-  sbBtn.addEventListener('click', toggleSidebar);
-  document.querySelector('.tb-left').prepend(sbBtn);
-  $('#st-lang').addEventListener('click', () => { if (state.activePath) showLangMenu(); });
-  $('#st-font-minus').addEventListener('click', () => changeFontSize(-1));
-  $('#st-font-plus').addEventListener('click', () => changeFontSize(1));
-  $('#btn-clear').addEventListener('click', outClear);
-  $('#btn-panel').addEventListener('click', togglePanel);
-  $('#st-panel').addEventListener('click', togglePanel);
-  $('#pv-close').addEventListener('click', hidePreview);
-  $('#pv-refresh').addEventListener('click', () => {
-    if (state.previewPath) showPreview(resolveProjectHtml(state.previewPath));
-  });
-  $('#modal-ok').addEventListener('click', () => closeModal($('#modal-input').value));
-  $('#modal-cancel').addEventListener('click', () => closeModal(null));
-  $('#modal-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') closeModal(e.target.value);
-    else if (e.key === 'Escape') closeModal(null);
-  });
-  document.addEventListener('click', e => {
-    if (!$('#ctx-menu').contains(e.target)) hideCtxMenu();
-    if (!$('#lang-menu').contains(e.target) && !e.target.closest('#st-lang')) hideLangMenu();
-  });
-  window.addEventListener('blur', hideCtxMenu);
-  document.addEventListener('keydown', onKeydown);
-  window.addEventListener('message', onRunnerMessage);
-}
 
-/* ================= 初始化 ================= */
-function init(){
-  const restored = loadProject();
-  if (!state.root) state.root = restored ? state.root : defaultProject();
-  if (window.innerWidth <= 860) $('#app').classList.add('side-collapsed');
-  applyPalette();
-  setTheme(state.theme);
-  applyFontFamily();
-  applyHintSize();
-  setActivity(state.activity);
-  bindEvents();
-  initEditor();
-  applyTabSize();
-  try { mqTheme.addEventListener('change', () => { if (state.theme === 'system') applyTheme(); }); }
-  catch (e){ if (mqTheme.addListener) mqTheme.addListener(() => { if (state.theme === 'system') applyTheme(); }); }
-  if (!state.activePath && findNode('/index.html')) state.activePath = '/index.html';
-  if (state.activePath){
-    if (!state.tabs.some(t => t.path === state.activePath)) state.tabs.unshift({ path: state.activePath, dirty: false });
-    applyEditor(state.activePath);
-    updateStatus(state.activePath);
-  } else {
-    hideEditor();
-  }
-  renderTree(); renderTabs(); updateBreadcrumb(); updateStatusCount(); updateSaveLabel();
-  out('豆沙包 IDE 已就绪。左侧为文件树，右上角「运行」执行当前文件（Ctrl+Enter），Ctrl+S 保存。', 'info');
-  out('内置示例项目可直接体验：打开 index.html 后点击「运行」，右侧会出现页面预览。', 'system');
-}
-init();
+        :root {
+            --color-bg: #ffffff;
+            --color-bg-subtle: #f6f8fa;
+            --color-text: #1f2328;
+            --color-text-secondary: #59636e;
+            --color-text-muted: #6e7781;
+            --color-accent: #0969da;
+            --color-accent-hover: #0860ca;
+            --color-border: #d1d9e0;
+            --color-dark: #0d1117;
+            --color-dark-text: #f0f6fc;
+            --color-dark-secondary: #9198a1;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+            color: var(--color-text);
+            background: var(--color-bg);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
 
+        /* ===== 导航栏 ===== */
+        .navbar {
+            background: var(--color-dark);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-</script>
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #0969da, #218bff);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--color-dark-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border-color: var(--color-border);
+            color: white;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-hover);
+        }
+
+        /* ===== Hero 区域 ===== */
+        .hero {
+            background: var(--color-dark);
+            color: var(--color-dark-text);
+            padding: 80px 24px 120px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(9, 105, 218, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(33, 139, 255, 0.1) 0%, transparent 40%);
+            pointer-events: none;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(9, 105, 218, 0.15);
+            border: 1px solid rgba(9, 105, 218, 0.3);
+            color: #79b8ff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #79b8ff, #218bff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 20px;
+            color: var(--color-dark-secondary);
+            max-width: 600px;
+            margin: 0 auto 36px;
+            line-height: 1.6;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-lg {
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: var(--radius-md);
+        }
+
+        .btn-light {
+            background: white;
+            color: var(--color-dark);
+        }
+
+        .btn-light:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--color-dark-secondary);
+            color: white;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* ===== 产品展示区 ===== */
+        .showcase {
+            padding: 80px 24px;
+            background: var(--color-bg);
+        }
+
+        .showcase-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .browser-mockup {
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+
+        .browser-header {
+            background: var(--color-bg-subtle);
+            border-bottom: 1px solid var(--color-border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .browser-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .browser-dot.red { background: #ff5f57; }
+        .browser-dot.yellow { background: #febc2e; }
+        .browser-dot.green { background: #28c840; }
+
+        .browser-url {
+            flex: 1;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 13px;
+            color: var(--color-text-muted);
+            margin-left: 16px;
+            text-align: center;
+        }
+
+        .browser-body {
+            display: flex;
+            min-height: 400px;
+        }
+
+        .sidebar {
+            width: 220px;
+            background: var(--color-bg-subtle);
+            border-right: 1px solid var(--color-border);
+            padding: 16px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .sidebar-item.active {
+            background: rgba(9, 105, 218, 0.1);
+            color: var(--color-accent);
+            font-weight: 500;
+        }
+
+        .sidebar-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 24px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .content-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .upload-btn {
+            background: var(--color-accent);
+            color: white;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 16px;
+        }
+
+        .file-card {
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .file-card:hover {
+            border-color: var(--color-accent);
+            box-shadow: 0 4px 12px rgba(9, 105, 218, 0.1);
+        }
+
+        .file-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .file-icon.blue { background: #0969da; }
+        .file-icon.green { background: #1a7f37; }
+        .file-icon.orange { background: #9a6700; }
+        .file-icon.purple { background: #8250df; }
+        .file-icon.red { background: #cf222e; }
+
+        .file-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-text);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-size {
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        /* ===== 特性区域 ===== */
+        .features {
+            padding: 80px 24px;
+            background: var(--color-bg-subtle);
+        }
+
+        .features-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 56px;
+        }
+
+        .section-header h2 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.3px;
+        }
+
+        .section-header p {
+            font-size: 18px;
+            color: var(--color-text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            transition: all 0.2s;
+        }
+
+        .feature-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: rgba(9, 105, 218, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            color: var(--color-accent);
+        }
+
+        .feature-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ===== CTA 区域 ===== */
+        .cta {
+            padding: 80px 24px;
+            background: var(--color-dark);
+            color: var(--color-dark-text);
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .cta p {
+            font-size: 18px;
+            color: var(--color-dark-secondary);
+            margin-bottom: 32px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ===== 页脚 ===== */
+        .footer {
+            background: var(--color-bg-subtle);
+            border-top: 1px solid var(--color-border);
+            padding: 40px 24px;
+        }
+
+        .footer-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--color-text);
+            font-weight: 600;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            color: var(--color-accent);
+        }
+
+        .footer-copy {
+            font-size: 13px;
+            color: var(--color-text-muted);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 36px;
+            }
+
+            .hero p {
+                font-size: 17px;
+            }
+
+            .browser-body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--color-border);
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header h2 {
+                font-size: 28px;
+            }
+
+            .cta h2 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">F</div>
+                Fuo Drive
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">功能</a></li>
+                <li><a href="/ide">IDE</a></li>
+                <li><a href="#about">关于</a></li>
+            </ul>
+        </div>
+        <div class="nav-right">
+            <a href="#login" class="btn btn-outline">登录</a>
+            <a href="/drive" class="btn btn-primary">进入网盘</a>
+        </div>
+    </nav>
+
+    <!-- Hero 区域 -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span>✦</span> 全新版本上线
+            </div>
+            <h1>你的私人文件，<br><span>就在指尖</span></h1>
+            <p>Fuo Drive 是一个简单、安全的私人网盘，用来存放你和朋友的作业、笔记、图片和各种小文件。</p>
+            <div class="hero-buttons">
+                <a href="/drive" class="btn btn-light btn-lg">立即使用</a>
+                <a href="#learn-more" class="btn btn-ghost btn-lg">了解更多</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 产品展示 -->
+    <section class="showcase">
+        <div class="showcase-inner">
+            <div class="browser-mockup">
+                <div class="browser-header">
+                    <div class="browser-dot red"></div>
+                    <div class="browser-dot yellow"></div>
+                    <div class="browser-dot green"></div>
+                    <div class="browser-url">finokuo.github.io/drive</div>
+                </div>
+                <div class="browser-body">
+                    <div class="sidebar">
+                        <div class="sidebar-item active">
+                            <svg class="sidebar-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M1.5 2.75A.75.75 0 0 1 2.25 2h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 1.5 2.75Zm0 5A.75.75 0 0 1 2.25 7h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 1.5 7.75Zm0 5a.75.75 0 0 1 .75-.75h4a.75.75 0 0 1 0 1.5h-4a.75.75 0 0 1-.75-.75Z"></path>
+                            </svg>
+                            全部文件
+                        </div>
+                        <div class="sidebar-item">
+                            <svg class="sidebar-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M1.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25Zm0-1.5A1.75 1.75 0 0 0 0 2.75v10.5c0 .966.784 1.75 1.75 1.75h12.5A1.75 1.75 0 0 0 16 13.25V2.75A1.75 1.75 0 0 0 14.25 1Z"></path>
+                            </svg>
+                            最近上传
+                        </div>
+                        <div class="sidebar-item">
+                            <svg class="sidebar-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8 .25a.75.75 0 0 1 .75.75v1.06l2.28-.959a.75.75 0 0 1 .548 1.392l-2.828 1.19v3.517l2.828 1.19a.75.75 0 1 1-.548 1.392l-2.28-.959v1.06a.75.75 0 0 1-1.5 0V8.873l-2.28.959a.75.75 0 1 1-.548-1.392l2.828-1.19V3.733l-2.828-1.19A.75.75 0 0 1 4.97 1.15l2.28.959V1A.75.75 0 0 1 8 .25Z"></path>
+                            </svg>
+                            收藏
+                        </div>
+                        <div class="sidebar-item">
+                            <svg class="sidebar-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M11 1.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1ZM1 5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Zm9-1.5v3h3v-3ZM1 11a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"></path>
+                            </svg>
+                            分类
+                        </div>
+                    </div>
+                    <div class="main-content">
+                        <div class="content-header">
+                            <h3>全部文件</h3>
+                            <button class="upload-btn">上传文件</button>
+                        </div>
+                        <div class="file-grid">
+                            <div class="file-card">
+                                <div class="file-icon blue">P</div>
+                                <div class="file-name">数学作业.pdf</div>
+                                <div class="file-size">2.4 MB</div>
+                            </div>
+                            <div class="file-card">
+                                <div class="file-icon green">I</div>
+                                <div class="file-name">旅行照片.png</div>
+                                <div class="file-size">5.8 MB</div>
+                            </div>
+                            <div class="file-card">
+                                <div class="file-icon orange">N</div>
+                                <div class="file-name">读书笔记.docx</div>
+                                <div class="file-size">128 KB</div>
+                            </div>
+                            <div class="file-card">
+                                <div class="file-icon purple">C</div>
+                                <div class="file-name">算法练习.cpp</div>
+                                <div class="file-size">4.2 KB</div>
+                            </div>
+                            <div class="file-card">
+                                <div class="file-icon red">V</div>
+                                <div class="file-name">活动视频.mp4</div>
+                                <div class="file-size">85.6 MB</div>
+                            </div>
+                            <div class="file-card">
+                                <div class="file-icon blue">Z</div>
+                                <div class="file-name">项目资料.zip</div>
+                                <div class="file-size">45.2 MB</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 特性区域 -->
+    <section class="features" id="features">
+        <div class="features-inner">
+            <div class="section-header">
+                <h2>简单好用，专为朋友设计</h2>
+                <p>Fuo Drive 把复杂的东西都藏起来了，只留下最简单好用的功能。</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <h3>快速上传</h3>
+                    <p>拖一拖就能把文件传上来，支持各种格式，不用注册复杂的账号。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <h3>私人空间</h3>
+                    <p>这是你和朋友的小地盘，只有知道地址的人才能访问，安静又安全。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                    </div>
+                    <h3>文件管理</h3>
+                    <p>所有文件整齐排列，按类型、按时间分类，找东西一目了然。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA 区域 -->
+    <section class="cta">
+        <h2>现在就开始使用吧</h2>
+        <p>把你的文件都搬进来，和朋友一起分享这个小小的数字空间。</p>
+        <a href="/drive" class="btn btn-light btn-lg">进入 Fuo Drive</a>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-logo">
+                <div class="logo-icon" style="width:24px;height:24px;font-size:12px;">F</div>
+                Fuo Drive
+            </div>
+            <ul class="footer-links">
+                <li><a href="/ide">IDE</a></li>
+                <li><a href="/drive">网盘</a></li>
+                <li><a href="#about" onclick="showToast('关于页面正在建设中~'); return false;">关于我们</a></li>
+            </ul>
+            <div class="footer-copy">
+                © 2026 Finokuo & Friends. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast 提示 -->
+    <div id="toast" style="
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: #1f2328;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        pointer-events: none;
+    "></div>
+
+    <script>
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(80px)';
+            }, 2000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 上传文件按钮
+            const uploadBtn = document.querySelector('.upload-btn');
+            if (uploadBtn) {
+                uploadBtn.addEventListener('click', function() {
+                    showToast('上传功能即将上线~');
+                });
+            }
+
+            // 登录按钮
+            const loginBtn = document.querySelector('a[href="#login"]');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showToast('登录功能即将上线~');
+                });
+            }
+
+            // 了解更多按钮
+            const learnMoreBtn = document.querySelector('a[href="#learn-more"]');
+            if (learnMoreBtn) {
+                learnMoreBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
+                });
+            }
+
+            // 关于导航链接
+            const aboutNav = document.querySelector('a[href="#about"]');
+            if (aboutNav && aboutNav.closest('.nav-links')) {
+                aboutNav.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showToast('关于页面正在建设中~');
+                });
+            }
+        });
+    </script>
 </body>
 </html>
