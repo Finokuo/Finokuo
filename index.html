@@ -1,5 +1,106 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+<style>
+/* 登录注册弹窗 - 高优先级样式 */
+.modal {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 9999 !important;
+}
+.modal.show { display: flex !important; }
+
+.modal-box {
+    width: 380px !important;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
+}
+
+.modal-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 16px 20px !important;
+    border-bottom: 1px solid #30363d !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #e6edf3 !important;
+}
+
+.modal-close {
+    background: none !important;
+    border: none !important;
+    color: #8b949e !important;
+    font-size: 22px !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+}
+.modal-close:hover { color: #fff !important; }
+
+.modal-body {
+    padding: 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+.modal-body input {
+    width: 100% !important;
+    padding: 10px 14px !important;
+    background: #0d1117 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    color: #e6edf3 !important;
+    font-size: 14px !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+}
+.modal-body input:focus { border-color: #58a6ff !important; }
+
+.login-tip {
+    font-size: 12px !important;
+    color: #f85149 !important;
+    min-height: 18px !important;
+    margin: 2px 0 !important;
+}
+
+.modal-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    padding: 0 20px 20px !important;
+}
+
+.btn-secondary, .btn-primary {
+    padding: 8px 18px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    border: 1px solid #30363d !important;
+    font-weight: 500 !important;
+    transition: background 0.15s !important;
+}
+.btn-secondary {
+    background: #21262d !important;
+    color: #e6edf3 !important;
+}
+.btn-secondary:hover { background: #30363d !important; }
+
+.btn-primary {
+    background: #238636 !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    font-weight: 600 !important;
+}
+.btn-primary:hover { background: #2ea043 !important; }
+</style>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -602,7 +703,11 @@
             </ul>
         </div>
         <div class="nav-right">
-            <a href="#login" class="btn btn-outline">登录</a>
+            <!-- 原有登录按钮 -->
+            <button class="nav-btn" id="btn-login">登录</button>
+            <!-- 新增注册按钮 -->
+            <button class="nav-btn" id="btn-register">注册</button>
+
             <a href="/drive" class="btn btn-primary">进入网盘</a>
         </div>
     </nav>
@@ -838,5 +943,180 @@
             }
         });
     </script>
+    <!-- 登录弹窗 -->
+<div class="modal" id="modal-login">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>登录 Fuo Drive</span>
+      <button class="modal-close" data-close="modal-login">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="login-username" placeholder="用户名" autocomplete="off">
+      <input type="password" id="login-password" placeholder="密码">
+      <div class="login-tip" id="login-tip"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="modal-login">取消</button>
+      <button class="btn-primary" id="btn-login-confirm">登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 注册弹窗 -->
+<div class="modal" id="modal-register">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>注册账号</span>
+      <button class="modal-close" data-close="modal-register">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="reg-username" placeholder="用户名" autocomplete="off">
+      <input type="password" id="reg-password" placeholder="密码">
+      <input type="password" id="reg-password2" placeholder="确认密码">
+      <input type="text" id="reg-key" placeholder="注册密钥">
+      <div class="login-tip" id="reg-tip"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="modal-register">取消</button>
+      <button class="btn-primary" id="btn-register-confirm">注册</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
+.modal.show{display:flex}
+.modal-box{width:360px;background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #30363d;font-size:15px;font-weight:600;color:#e6edf3}
+.modal-close{background:none;border:none;color:#8b949e;font-size:20px;cursor:pointer;line-height:1}
+.modal-close:hover{color:#fff}
+.modal-body{padding:18px;display:flex;flex-direction:column;gap:10px}
+.modal-body input{width:100%;padding:9px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:14px;outline:none}
+.modal-body input:focus{border-color:#58a6ff}
+.login-tip{font-size:12px;color:#f85149;min-height:18px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 18px 18px}
+.btn-secondary,.btn-primary{padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:1px solid #30363d}
+.btn-secondary{background:#21262d;color:#e6edf3}
+.btn-secondary:hover{background:#30363d}
+.btn-primary{background:#238636;color:#fff;border-color:transparent;font-weight:600}
+.btn-primary:hover{background:#2ea043}
+</style>
+
+<script>
+// 初始化：首次访问自动创建 System 管理员账号
+function initStorage(){
+  if(!localStorage.getItem('fd_users')){
+    const defaultUsers = [
+      {username:'System', password:'m859203#', isAdmin:true}
+    ];
+    localStorage.setItem('fd_users', JSON.stringify(defaultUsers));
+  }
+  if(!localStorage.getItem('fd_verifyPasswords')){
+    localStorage.setItem('fd_verifyPasswords', JSON.stringify([]));
+  }
+  if(!localStorage.getItem('fd_registerKeys')){
+    localStorage.setItem('fd_registerKeys', JSON.stringify([]));
+  }
+}
+initStorage();
+
+// 获取当前登录用户
+function getCurrentUser(){
+  const u = localStorage.getItem('fd_currentUser');
+  if(!u) return null;
+  const users = JSON.parse(localStorage.getItem('fd_users')||'[]');
+  return users.find(x=>x.username===u) || null;
+}
+
+// 弹窗关闭控制
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.getElementById(btn.dataset.close).classList.remove('show');
+  });
+});
+
+// 打开登录弹窗
+document.getElementById('btn-login').addEventListener('click',()=>{
+  document.getElementById('modal-login').classList.add('show');
+  document.getElementById('login-tip').textContent='';
+});
+
+// 打开注册弹窗
+document.getElementById('btn-register').addEventListener('click',()=>{
+  document.getElementById('modal-register').classList.add('show');
+  document.getElementById('reg-tip').textContent='';
+});
+
+// 登录逻辑
+document.getElementById('btn-login-confirm').addEventListener('click',()=>{
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const tip = document.getElementById('login-tip');
+  
+  if(!username || !password){ tip.textContent='请输入用户名和密码'; return; }
+  
+  const users = JSON.parse(localStorage.getItem('fd_users')||'[]');
+  const user = users.find(u=>u.username===username && u.password===password);
+  
+  if(!user){ tip.textContent='用户名或密码错误'; return; }
+  
+  localStorage.setItem('fd_currentUser', username);
+  document.getElementById('modal-login').classList.remove('show');
+  location.reload();
+});
+
+// 注册逻辑
+document.getElementById('btn-register-confirm').addEventListener('click',()=>{
+  const username = document.getElementById('reg-username').value.trim();
+  const pwd1 = document.getElementById('reg-password').value;
+  const pwd2 = document.getElementById('reg-password2').value;
+  const key = document.getElementById('reg-key').value.trim();
+  const tip = document.getElementById('reg-tip');
+  
+  if(!username || !pwd1 || !pwd2 || !key){ tip.textContent='请填写全部内容'; return; }
+  if(pwd1 !== pwd2){ tip.textContent='两次密码输入不一致'; return; }
+  if(username.length < 2){ tip.textContent='用户名至少2位'; return; }
+  
+  const users = JSON.parse(localStorage.getItem('fd_users')||'[]');
+  if(users.find(u=>u.username===username)){ tip.textContent='用户名已存在'; return; }
+  
+  let keys = JSON.parse(localStorage.getItem('fd_registerKeys')||'[]');
+  const keyIndex = keys.findIndex(k=>k.key===key && !k.used);
+  if(keyIndex === -1){ tip.textContent='注册密钥无效或已使用'; return; }
+  
+  // 注册成功，删除已使用的密钥
+  keys.splice(keyIndex, 1);
+  localStorage.setItem('fd_registerKeys', JSON.stringify(keys));
+  
+  // 创建新用户
+  users.push({username, password:pwd1, isAdmin:false});
+  localStorage.setItem('fd_users', JSON.stringify(users));
+  
+  tip.style.color='#3fb950';
+  tip.textContent='注册成功！即将自动登录';
+  setTimeout(()=>{
+    localStorage.setItem('fd_currentUser', username);
+    location.reload();
+  },800);
+});
+
+// 页面加载：更新导航栏状态
+window.addEventListener('load',()=>{
+  const user = getCurrentUser();
+  if(user){
+    // 已登录：替换为用户名，点击可退出
+    const loginBtn = document.getElementById('btn-login');
+    loginBtn.textContent = user.username + (user.isAdmin?' (管理员)':'');
+    document.getElementById('btn-register').style.display='none';
+    
+    loginBtn.onclick = ()=>{
+      if(confirm('确定退出登录吗？')){
+        localStorage.removeItem('fd_currentUser');
+        location.reload();
+      }
+    };
+  }
+});
+</script>
 </body>
 </html>
