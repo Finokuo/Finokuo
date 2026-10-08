@@ -1,1 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>密钥中心 - Fuo Drive</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:#0d1117;color:#e6edf3;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.container{width:100%;max-width:480px;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:28px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+h1{font-size:20px;font-weight:600;margin-bottom:20px;text-align:center}
+.tip{text-align:center;color:#8b949e;margin-bottom:18px;line-height:1.6}
+.input-group{margin-bottom:12px}
+input{
+  width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;
+  color:#e6edf3;font-size:14px;outline:none;margin-bottom:8px;
+}
+input:focus{border-color:#58a6ff}
+.btn{
+  width:100%;padding:10px;border-radius:6px;font-size:14px;cursor:pointer;border:none;font-weight:600;
+}
+.btn-primary{background:#238636;color:#fff}
+.btn-primary:hover{background:#2ea043}
+.btn-danger{background:#da3633;color:#fff}
+.btn-danger:hover{background:#f85149}
+.btn-secondary{background:#21262d;color:#e6edf3;border:1px solid #30363d}
+.btn-secondary:hover{background:#30363d}
+.msg{font-size:13px;min-height:18px;margin:8px 0;text-align:center}
+.error{color:#f85149}
+.success{color:#3fb950}
+.section{margin-top:20px;padding-top:18px;border-top:1px solid #30363d}
+.section h3{font-size:15px;margin-bottom:12px;font-weight:600}
+.item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;margin-bottom:6px;
+  font-size:13px;font-family:ui-monospace,Consolas,monospace;
+}
+.item button{padding:3px 8px;border-radius:4px;background:#21262d;color:#f85149;border:1px solid #30363d;cursor:pointer;font-size:12px}
+.item button:hover{background:#da3633;color:#fff;border-color:transparent}
+.empty{text-align:center;color:#6e7681;padding:12px;font-size:13px}
+.back-link{display:block;text-align:center;margin-top:18px;color:#58a6ff;text-decoration:none;font-size:13px}
+.back-link:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔑 密钥中心</h1>
+  <div id="content"></div>
+  <a href="../" class="back-link">← 返回主页</a>
+</div>
 
+<script>
+// 数据初始化
+function initStorage(){
+  if(!localStorage.getItem('fd_users')){
+    localStorage.setItem('fd_users', JSON.stringify([
+      {username:'System', password:'m859203#', isAdmin:true}
+    ]));
+  }
+  if(!localStorage.getItem('fd_verifyPasswords')){
+    localStorage.setItem('fd_verifyPasswords', JSON.stringify([]));
+  }
+  if(!localStorage.getItem('fd_registerKeys')){
+    localStorage.setItem('fd_registerKeys', JSON.stringify([]));
+  }
+}
+initStorage();
+
+function getCurrentUser(){
+  const u = localStorage.getItem('fd_currentUser');
+  if(!u) return null;
+  const users = JSON.parse(localStorage.getItem('fd_users')||'[]');
+  return users.find(x=>x.username===u) || null;
+}
+
+const content = document.getElementById('content');
+const user = getCurrentUser();
+
+// 已登录普通用户
+if(user && !user.isAdmin){
+  content.innerHTML = `
+    <div class="tip success">
+      ✅ 您已登录账号<br>
+      您已经不需要密钥了哦~
+    </div>
+  `;
+}
+// 已登录管理员（System）
+else if(user && user.isAdmin){
+  renderAdminPanel();
+}
+// 未登录
+else {
+  renderVerifyForm(false);
+}
+
+// 渲染验证密码表单
+function renderVerifyForm(passed){
+  if(!passed){
+    content.innerHTML = `
+      <p class="tip">请输入验证密码</p>
+      <input type="password" id="verify-pwd" placeholder="验证密码">
+      <div class="msg error" id="verify-msg"></div>
+      <button class="btn btn-primary" id="btn-verify">确认</button>
+    `;
+    
+    document.getElementById('btn-verify').addEventListener('click',()=>{
+      const pwd = document.getElementById('verify-pwd').value;
+      const msg = document.getElementById('verify-msg');
+      const passwords = JSON.parse(localStorage.getItem('fd_verifyPasswords')||'[]');
+      
+      if(!pwd){ msg.textContent='请输入验证密码'; return; }
+      if(!passwords.includes(pwd)){ msg.textContent='验证密码错误'; return; }
+      
+      renderVerifyForm(true);
+    });
+  } else {
+    // 验证通过，显示注册密钥生成
+    content.innerHTML = `
+      <p class="tip success">✅ 验证通过</p>
+      <div class="section">
+        <h3>注册密钥</h3>
+        <p style="font-size:12px;color:#8b949e;margin-bottom:10px">每个密钥只能使用一次，注册后自动失效</p>
+        <button class="btn btn-secondary" id="btn-gen-key">生成随机注册密钥</button>
+        <div id="key-result" style="margin-top:12px"></div>
+      </div>
+    `;
+    
+    document.getElementById('btn-gen-key').addEventListener('click',()=>{
+      const key = Math.random().toString(36).substring(2,10).toUpperCase();
+      let keys = JSON.parse(localStorage.getItem('fd_registerKeys')||'[]');
+      keys.push({key, used:false});
+      localStorage.setItem('fd_registerKeys', JSON.stringify(keys));
+      
+      document.getElementById('key-result').innerHTML = `
+        <div class="item">
+          <span>${key}</span>
+          <span style="color:#3fb950;font-size:11px">有效</span>
+        </div>
+      `;
+    });
+  }
+}
+
+// 渲染管理员面板
+function renderAdminPanel(){
+  const passwords = JSON.parse(localStorage.getItem('fd_verifyPasswords')||'[]');
+  const keys = JSON.parse(localStorage.getItem('fd_registerKeys')||'[]');
+  const validKeys = keys.filter(k=>!k.used);
+  
+  content.innerHTML = `
+    <p class="tip">
+      ⚙️ 管理员面板<br>
+      <span style="font-size:12px;color:#8b949e">管理验证密码与注册密钥</span>
+    </p>
+    
+    <div class="section">
+      <h3>验证密码管理</h3>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <input type="text" id="new-pwd" placeholder="添加新验证密码" style="flex:1;margin:0">
+        <button class="btn btn-primary" id="btn-add-pwd" style="width:auto;padding:0 14px">添加</button>
+      </div>
+      <div id="pwd-list">
+        ${passwords.length===0 
+          ? '<div class="empty">暂无验证密码</div>' 
+          : passwords.map(p=>`
+            <div class="item">
+              <span>${p}</span>
+              <button data-pwd="${p}" class="del-pwd">删除</button>
+            </div>
+          `).join('')
+        }
+      </div>
+    </div>
+    
+    <div class="section">
+      <h3>注册密钥管理</h3>
+      <button class="btn btn-secondary" id="btn-gen-admin-key" style="margin-bottom:10px">生成新密钥</button>
+      <div id="key-list">
+        ${validKeys.length===0 
+          ? '<div class="empty">暂无有效密钥</div>' 
+          : validKeys.map(k=>`
+            <div class="item">
+              <span>${k.key}</span>
+              <button data-key="${k.key}" class="del-key">删除</button>
+            </div>
+          `).join('')
+        }
+      </div>
+    </div>
+  `;
+  
+  // 添加验证密码
+  document.getElementById('btn-add-pwd').addEventListener('click',()=>{
+    const pwd = document.getElementById('new-pwd').value.trim();
+    if(!pwd) return;
+    let passwords = JSON.parse(localStorage.getItem('fd_verifyPasswords')||'[]');
+    if(passwords.includes(pwd)) return;
+    passwords.push(pwd);
+    localStorage.setItem('fd_verifyPasswords', JSON.stringify(passwords));
+    renderAdminPanel();
+  });
+  
+  // 删除验证密码
+  document.querySelectorAll('.del-pwd').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const pwd = btn.dataset.pwd;
+      let passwords = JSON.parse(localStorage.getItem('fd_verifyPasswords')||'[]');
+      passwords = passwords.filter(p=>p!==pwd);
+      localStorage.setItem('fd_verifyPasswords', JSON.stringify(passwords));
+      renderAdminPanel();
+    });
+  });
+  
+  // 生成密钥
+  document.getElementById('btn-gen-admin-key').addEventListener('click',()=>{
+    const key = Math.random().toString(36).substring(2,10).toUpperCase();
+    let keys = JSON.parse(localStorage.getItem('fd_registerKeys')||'[]');
+    keys.push({key, used:false});
+    localStorage.setItem('fd_registerKeys', JSON.stringify(keys));
+    renderAdminPanel();
+  });
+  
+  // 删除密钥
+  document.querySelectorAll('.del-key').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const key = btn.dataset.key;
+      let keys = JSON.parse(localStorage.getItem('fd_registerKeys')||'[]');
+      keys = keys.filter(k=>k.key!==key);
+      localStorage.setItem('fd_registerKeys', JSON.stringify(keys));
+      renderAdminPanel();
+    });
+  });
+}
+</script>
+</body>
+</html>
