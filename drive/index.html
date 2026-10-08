@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fuo Drive - 私人网盘</title>
+<style>
+/* ===== 主题变量（与主页统一） ===== */
+:root{
+  --bg-0:#0d1117;
+  --bg-1:#161b22;
+  --bg-2:#21262d;
+  --bg-3:#30363d;
+  --border:#30363d;
+  --border-soft:#21262d;
+  --text:#e6edf3;
+  --text-dim:#8b949e;
+  --text-faint:#6e7681;
+  --accent:#58a6ff;
+  --success:#238636;
+  --success-hover:#2ea043;
+  --danger:#da3633;
+  --danger-hover:#f85149;
+  --warning:#d29922;
+  --shadow:0 8px 32px rgba(0,0,0,.4);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg-0);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;background:none;border:none;color:inherit;cursor:pointer}
+
+/* ===== 顶部导航 ===== */
+.navbar{
+  height:60px;background:var(--bg-1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 24px;
+  position:sticky;top:0;z-index:100;
+}
+.nav-left{display:flex;align-items:center;gap:16px}
+.logo{font-size:18px;font-weight:700;letter-spacing:.5px}
+.logo span{color:var(--accent)}
+.back-home{color:var(--text-dim);font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:6px}
+.back-home:hover{color:var(--text);border-color:var(--bg-3)}
+
+.nav-right{display:flex;align-items:center;gap:16px}
+.storage-box{
+  display:flex;align-items:center;gap:10px;padding:6px 12px;
+  background:var(--bg-2);border:1px solid var(--border);border-radius:6px;
+  font-size:12px;
+}
+.storage-bar{
+  width:120px;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden;
+}
+.storage-bar-inner{height:100%;background:var(--success);transition:width .3s}
+.storage-text{color:var(--text-dim);white-space:nowrap}
+.storage-text b{color:var(--text);font-weight:600}
+
+.btn-extend{
+  padding:6px 14px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-2);color:var(--text);font-size:12px;
+}
+.btn-extend:hover{border-color:var(--accent);color:var(--accent)}
+
+.user-btn{
+  padding:6px 12px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-2);font-size:13px;display:flex;align-items:center;gap:6px
+}
+.user-btn:hover{border-color:var(--bg-3)}
+.admin-tag{font-size:11px;color:var(--warning);font-weight:600}
+
+/* ===== 主体布局 ===== */
+.app{display:flex;height:calc(100vh - 60px)}
+
+/* 侧边栏 */
+.sidebar{
+  width:240px;background:var(--bg-1);border-right:1px solid var(--border);
+  padding:16px 0;display:flex;flex-direction:column;gap:4px;
+}
+.side-item{
+  display:flex;align-items:center;gap:10px;padding:10px 20px;
+  color:var(--text-dim);cursor:pointer;font-size:14px;
+  border-left:3px solid transparent;
+}
+.side-item:hover{background:var(--bg-2);color:var(--text)}
+.side-item.active{color:var(--text);background:rgba(88,166,255,.1);border-left-color:var(--accent)}
+.side-item svg{width:18px;height:18px}
+.side-divider{height:1px;background:var(--border);margin:12px 16px}
+.side-section{font-size:11px;letter-spacing:.08em;color:var(--text-faint);padding:8px 20px 4px;text-transform:uppercase}
+
+/* 主内容区 */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.toolbar{
+  height:52px;border-bottom:1px solid var(--border);padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.breadcrumb{color:var(--text-dim);font-size:13px}
+.view-switch{display:flex;gap:4px}
+.view-btn{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);border-radius:6px;background:var(--bg-1);color:var(--text-dim);
+}
+.view-btn:hover{color:var(--text);border-color:var(--bg-3)}
+.view-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(88,166,255,.1)}
+
+/* 文件容器 */
+.file-container{flex:1;overflow:auto;padding:20px 24px}
+
+/* 列表视图 */
+.file-list{display:flex;flex-direction:column;gap:2px}
+.file-header{
+  display:grid;grid-template-columns:1fr 120px 160px 100px;
+  padding:8px 12px;color:var(--text-dim);font-size:12px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--bg-0);z-index:10;
+}
+.file-row{
+  display:grid;grid-template-columns:1fr 120px 160px 100px;
+  align-items:center;padding:10px 12px;border-radius:6px;cursor:default;
+  border:1px solid transparent;
+}
+.file-row:hover{background:var(--bg-1);border-color:var(--border)}
+.file-name{display:flex;align-items:center;gap:10px}
+.file-icon{width:20px;height:20px;color:var(--accent)}
+.file-size,.file-date{color:var(--text-dim);font-size:13px}
+.file-actions{display:flex;gap:6px;justify-content:flex-end}
+.file-btn{
+  padding:4px 10px;border:1px solid var(--border);border-radius:4px;
+  background:var(--bg-2);color:var(--text-dim);font-size:12px;
+}
+.file-btn:hover{color:var(--text);border-color:var(--bg-3)}
+.file-btn.danger:hover{color:#fff;background:var(--danger);border-color:transparent}
+
+/* 网格视图 */
+.file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.file-card{
+  background:var(--bg-1);border:1px solid var(--border);border-radius:8px;
+  padding:16px;display:flex;flex-direction:column;gap:10px;
+  transition:all .15s;
+}
+.file-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+.card-icon{width:40px;height:40px;color:var(--accent);margin:0 auto 4px}
+.card-name{font-size:13px;text-align:center;word-break:break-all;line-height:1.4}
+.card-meta{font-size:11px;color:var(--text-dim);text-align:center}
+.card-actions{display:flex;gap:6px;justify-content:center;margin-top:auto}
+.card-btn{
+  flex:1;padding:5px 0;border:1px solid var(--border);border-radius:4px;
+  background:var(--bg-2);color:var(--text-dim);font-size:12px;
+}
+.card-btn:hover{color:var(--text);border-color:var(--bg-3)}
+.card-btn.danger:hover{color:#fff;background:var(--danger);border-color:transparent}
+
+/* 空状态 */
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-dim);
+}
+.empty-state svg{width:64px;height:64px;opacity:.4;margin-bottom:12px}
+
+/* ===== 弹窗 ===== */
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);
+  display:none;align-items:center;justify-content:center;z-index:200;
+}
+.modal.show{display:flex}
+.modal-box{
+  width:380px;background:var(--bg-1);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;box-shadow:var(--shadow);
+}
+.modal-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  font-size:15px;font-weight:600;
+}
+.modal-close{color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:18px}
+.modal-body p{color:var(--text-dim);line-height:1.6;margin-bottom:10px}
+.modal-body input{
+  width:100%;padding:9px 12px;background:var(--bg-0);
+  border:1px solid var(--border);border-radius:6px;color:var(--text);
+  font-size:14px;outline:none;margin-bottom:12px;
+}
+.modal-body input:focus{border-color:var(--accent)}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 18px 18px}
+.btn-secondary,.btn-primary,.btn-danger{
+  padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer;
+  border:1px solid var(--border);
+}
+.btn-secondary{background:var(--bg-2);color:var(--text)}
+.btn-secondary:hover{background:var(--bg-3)}
+.btn-primary{background:var(--success);color:#fff;border-color:transparent;font-weight:600}
+.btn-primary:hover{background:var(--success-hover)}
+.btn-danger{background:var(--danger);color:#fff;border-color:transparent}
+.btn-danger:hover{background:var(--danger-hover)}
+
+/* 管理员用户列表 */
+.admin-user-list{display:flex;flex-direction:column;gap:4px;max-height:300px;overflow:auto}
+.admin-user-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 12px;background:var(--bg-0);border:1px solid var(--border);border-radius:6px;
+}
+.admin-user-item .u-name{font-weight:500}
+.admin-user-item .u-storage{font-size:12px;color:var(--text-dim)}
+.admin-user-item .u-actions{display:flex;gap:6px}
+.admin-user-item button{
+  padding:3px 8px;border:1px solid var(--border);border-radius:4px;
+  background:var(--bg-2);font-size:12px;color:var(--text-dim);
+}
+.admin-user-item button:hover{color:var(--text);border-color:var(--bg-3)}
+
+/* 总存储统计卡片 */
+.storage-overview{
+  background:linear-gradient(135deg,rgba(88,166,255,.1),rgba(35,134,54,.1));
+  border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;
+}
+.storage-overview .num{font-size:20px;font-weight:700;color:var(--text)}
+.storage-overview .label{font-size:12px;color:var(--text-dim);margin-top:2px}
+
+/* 响应式 */
+@media (max-width:768px){
+  .sidebar{width:60px;padding:16px 0}
+  .side-item span{display:none}
+  .file-header,.file-row{grid-template-columns:1fr 80px 100px 80px}
+  .storage-box .storage-text span{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部导航 ===== -->
+<nav class="navbar">
+  <div class="nav-left">
+    <div class="logo">Fuo <span>Drive</span></div>
+    <a href="../" class="back-home">← 返回主页</a>
+  </div>
+  <div class="nav-right">
+    <div class="storage-box" title="存储空间使用情况">
+      <div class="storage-bar"><div class="storage-bar-inner" id="storage-bar"></div></div>
+      <div class="storage-text"><b id="storage-used">0 MB</b> / <span id="storage-total">2 GB</span></div>
+    </div>
+    <button class="btn-extend" id="btn-extend">拓展额度</button>
+    <button class="user-btn" id="user-btn">
+      <span id="current-user-name">未登录</span>
+      <span class="admin-tag" id="admin-tag" style="display:none">管理员</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ===== 主体 ===== -->
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="side-item active" data-view="my-files">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+      <span>我的文件</span>
+    </div>
+
+    <div class="side-divider"></div>
+    <div class="side-section" id="admin-section" style="display:none">管理员</div>
+    <div class="side-item" id="admin-panel-btn" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>用户管理</span>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="main">
+    <div class="toolbar">
+      <div class="breadcrumb" id="breadcrumb">全部文件</div>
+      <div class="view-switch">
+        <button class="view-btn active" data-view="list" title="列表视图">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        </button>
+        <button class="view-btn" data-view="grid" title="网格视图">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="file-container" id="file-container">
+      <!-- 文件内容由JS渲染 -->
+    </div>
+  </main>
+</div>
+
+<!-- ===== 拓展额度弹窗 ===== -->
+<div class="modal" id="modal-extend">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>拓展存储空间</span>
+      <span class="modal-close" data-close="modal-extend">×</span>
+    </div>
+    <div class="modal-body">
+      <p>当前普通用户默认额度为 2GB。</p>
+      <p>如需更大存储空间，请联系管理员 <b>System</b> 进行额度调整。</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="modal-extend">我知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 管理员面板弹窗 ===== -->
+<div class="modal" id="modal-admin">
+  <div class="modal-box" style="width:520px">
+    <div class="modal-head">
+      <span>用户管理面板</span>
+      <span class="modal-close" data-close="modal-admin">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="storage-overview">
+        <div>
+          <div class="num" id="total-users">0</div>
+          <div class="label">注册用户数</div>
+        </div>
+        <div>
+          <div class="num" id="total-storage">0 GB</div>
+          <div class="label">全站已用存储</div>
+        </div>
+        <div>
+          <div class="num" id="avg-storage">0 MB</div>
+          <div class="label">人均使用量</div>
+        </div>
+      </div>
+      <div class="admin-user-list" id="admin-user-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 修改配额弹窗 ===== -->
+<div class="modal" id="modal-quota">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>修改用户配额</span>
+      <span class="modal-close" data-close="modal-quota">×</span>
+    </div>
+    <div class="modal-body">
+      <p>用户：<b id="quota-username"></b></p>
+      <input type="number" id="quota-value" placeholder="输入新的配额大小（GB）" min="0.1" step="0.1">
+      <p style="font-size:12px;color:var(--text-dim)">单位：GB，例如 2 代表 2GB</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="modal-quota">取消</button>
+      <button class="btn-primary" id="btn-quota-confirm">确认修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 删除确认弹窗 ===== -->
+<div class="modal" id="modal-delete">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>确认删除</span>
+      <span class="modal-close" data-close="modal-delete">×</span>
+    </div>
+    <div class="modal-body">
+      <p>确定要删除文件 <b id="delete-filename"></b> 吗？</p>
+      <p style="color:var(--danger);font-size:12px">删除后无法恢复，请谨慎操作。</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="modal-delete">取消</button>
+      <button class="btn-danger" id="btn-delete-confirm">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 工具函数 =====
+function formatSize(bytes){
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  if(bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + ' MB';
+  return (bytes/1024/1024/1024).toFixed(2) + ' GB';
+}
+function getUsers(){ return JSON.parse(localStorage.getItem('fd_users')||'[]'); }
+function getCurrentUser(){
+  const u = localStorage.getItem('fd_currentUser');
+  if(!u) return null;
+  return getUsers().find(x=>x.username===u) || null;
+}
+
+// 初始化用户配额
+function initUserQuota(username){
+  const quotas = JSON.parse(localStorage.getItem('fd_quotas')||'{}');
+  if(!quotas[username]){
+    quotas[username] = 2 * 1024 * 1024 * 1024; // 默认2GB
+    localStorage.setItem('fd_quotas', JSON.stringify(quotas));
+  }
+  return quotas[username];
+}
+
+// 初始化用户文件
+function initUserFiles(username){
+  const key = 'fd_files_' + username;
+  if(!localStorage.getItem(key)){
+    // 示例文件
+    const demoFiles = [
+      {name:'欢迎使用 Fuo Drive.txt', size:128, type:'text', date:Date.now(), url:'#'},
+    ];
+    localStorage.setItem(key, JSON.stringify(demoFiles));
+  }
+  return JSON.parse(localStorage.getItem(key));
+}
+
+// ===== 全局变量 =====
+let currentView = 'list'; // list / grid
+let currentFileUser = null; // 当前查看的用户（管理员切换用）
+let deleteTarget = null; // 待删除文件
+let quotaTarget = null; // 待修改配额用户
+
+// ===== 初始化 =====
+function init(){
+  const user = getCurrentUser();
+  if(!user){
+    alert('请先登录账号');
+    location.href = '../';
+    return;
+  }
+
+  currentFileUser = user.username;
+  
+  // 更新顶部用户信息
+  document.getElementById('current-user-name').textContent = user.username;
+  if(user.isAdmin){
+    document.getElementById('admin-tag').style.display = 'inline';
+    document.getElementById('admin-section').style.display = 'block';
+    document.getElementById('admin-panel-btn').style.display = 'flex';
+  }
+
+  // 初始化配额和文件
+  initUserQuota(user.username);
+  initUserFiles(user.username);
+
+  // 渲染存储信息
+  updateStorageDisplay();
+
+  // 渲染文件
+  renderFiles();
+
+  // 绑定事件
+  bindEvents();
+}
+
+// ===== 更新存储显示 =====
+function updateStorageDisplay(){
+  const user = getCurrentUser();
+  const quotas = JSON.parse(localStorage.getItem('fd_quotas')||'{}');
+  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+  
+  const used = files.reduce((sum,f)=>sum + f.size, 0);
+  const total = quotas[currentFileUser] || 2*1024*1024*1024;
+  const percent = Math.min(100, (used/total)*100);
+
+  document.getElementById('storage-used').textContent = formatSize(used);
+  document.getElementById('storage-total').textContent = formatSize(total);
+  document.getElementById('storage-bar').style.width = percent + '%';
+
+  // 超量变红
+  if(percent >= 90){
+    document.getElementById('storage-bar').style.background = 'var(--danger)';
+  }else if(percent >= 70){
+    document.getElementById('storage-bar').style.background = 'var(--warning)';
+  }else{
+    document.getElementById('storage-bar').style.background = 'var(--success)';
+  }
+}
+
+// ===== 渲染文件列表 =====
+function renderFiles(){
+  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+  const container = document.getElementById('file-container');
+  const user = getCurrentUser();
+  const isAdmin = user && user.isAdmin && currentFileUser !== user.username;
+
+  if(files.length === 0){
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <p>暂无文件</p>
+      </div>
+    `;
+    return;
+  }
+
+  if(currentView === 'list'){
+    let html = `<div class="file-header">
+      <div>文件名</div><div>大小</div><div>修改时间</div><div>操作</div>
+    </div><div class="file-list">`;
+    
+    files.forEach((f,idx)=>{
+      const date = new Date(f.date).toLocaleString('zh-CN');
+      html += `
+        <div class="file-row">
+          <div class="file-name">
+            <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <span>${f.name}</span>
+          </div>
+          <div class="file-size">${formatSize(f.size)}</div>
+          <div class="file-date">${date}</div>
+          <div class="file-actions">
+            <button class="file-btn" onclick="downloadFile(${idx})">下载</button>
+            ${isAdmin ? `<button class="file-btn danger" onclick="confirmDelete(${idx})">删除</button>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }else{
+    let html = '<div class="file-grid">';
+    files.forEach((f,idx)=>{
+      html += `
+        <div class="file-card">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <div class="card-name">${f.name}</div>
+          <div class="card-meta">${formatSize(f.size)}</div>
+          <div class="card-actions">
+            <button class="card-btn" onclick="downloadFile(${idx})">下载</button>
+            ${isAdmin ? `<button class="card-btn danger" onclick="confirmDelete(${idx})">删除</button>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // 更新面包屑
+  const user = getCurrentUser();
+  if(user.isAdmin && currentFileUser !== user.username){
+    document.getElementById('breadcrumb').textContent = `用户文件 / ${currentFileUser}`;
+  }else{
+    document.getElementById('breadcrumb').textContent = '全部文件';
+  }
+}
+
+// ===== 下载文件 =====
+function downloadFile(index){
+  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+  const file = files[index];
+  if(!file) return;
+  
+  if(file.url === '#'){
+    alert('这是示例文件，添加真实文件地址后即可下载');
+    return;
+  }
+  
+  const a = document.createElement('a');
+  a.href = file.url;
+  a.download = file.name;
+  a.click();
+}
+
+// ===== 删除确认 =====
+function confirmDelete(index){
+  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+  deleteTarget = index;
+  document.getElementById('delete-filename').textContent = files[index].name;
+  document.getElementById('modal-delete').classList.add('show');
+}
+
+document.getElementById('btn-delete-confirm').addEventListener('click',()=>{
+  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+  files.splice(deleteTarget, 1);
+  localStorage.setItem('fd_files_'+currentFileUser, JSON.stringify(files));
+  document.getElementById('modal-delete').classList.remove('show');
+  renderFiles();
+  updateStorageDisplay();
+});
+
+// ===== 视图切换 =====
+document.querySelectorAll('.view-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    renderFiles();
+  });
+});
+
+// ===== 拓展额度 =====
+document.getElementById('btn-extend').addEventListener('click',()=>{
+  document.getElementById('modal-extend').classList.add('show');
+});
+
+// ===== 管理员面板 =====
+document.getElementById('admin-panel-btn').addEventListener('click',()=>{
+  renderAdminPanel();
+  document.getElementById('modal-admin').classList.add('show');
+});
+
+function renderAdminPanel(){
+  const users = getUsers();
+  const quotas = JSON.parse(localStorage.getItem('fd_quotas')||'{}');
+  
+  let totalUsed = 0;
+  let listHtml = '';
+
+  users.forEach(u=>{
+    const files = JSON.parse(localStorage.getItem('fd_files_'+u.username)||'[]');
+    const used = files.reduce((sum,f)=>sum+f.size, 0);
+    totalUsed += used;
+    const quota = quotas[u.username] || 2*1024*1024*1024;
+
+    listHtml += `
+      <div class="admin-user-item">
+        <div>
+          <div class="u-name">${u.username} ${u.isAdmin?'<span class="admin-tag">管理员</span>':''}</div>
+          <div class="u-storage">已用 ${formatSize(used)} / 配额 ${formatSize(quota)}</div>
+        </div>
+        <div class="u-actions">
+          <button onclick="viewUserFiles('${u.username}')">查看文件</button>
+          <button onclick="openQuotaModal('${u.username}')">改配额</button>
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById('total-users').textContent = users.length;
+  document.getElementById('total-storage').textContent = formatSize(totalUsed);
+  document.getElementById('avg-storage').textContent = users.length>0 ? formatSize(Math.round(totalUsed/users.length)) : '0 B';
+  document.getElementById('admin-user-list').innerHTML = listHtml;
+}
+
+// 管理员查看用户文件
+function viewUserFiles(username){
+  currentFileUser = username;
+  document.getElementById('modal-admin').classList.remove('show');
+  initUserFiles(username);
+  renderFiles();
+  updateStorageDisplay();
+}
+
+// 打开修改配额弹窗
+function openQuotaModal(username){
+  quotaTarget = username;
+  const quotas = JSON.parse(localStorage.getItem('fd_quotas')||'{}');
+  const quota = quotas[username] || 2*1024*1024*1024;
+  document.getElementById('quota-username').textContent = username;
+  document.getElementById('quota-value').value = (quota/1024/1024/1024).toFixed(1);
+  document.getElementById('modal-admin').classList.remove('show');
+  document.getElementById('modal-quota').classList.add('show');
+}
+
+document.getElementById('btn-quota-confirm').addEventListener('click',()=>{
+  const val = parseFloat(document.getElementById('quota-value').value);
+  if(isNaN(val) || val <= 0){ alert('请输入有效的数值'); return; }
+  
+  const quotas = JSON.parse(localStorage.getItem('fd_quotas')||'{}');
+  quotas[quotaTarget] = val * 1024 * 1024 * 1024;
+  localStorage.setItem('fd_quotas', JSON.stringify(quotas));
+  
+  document.getElementById('modal-quota').classList.remove('show');
+  updateStorageDisplay();
+  alert('配额修改成功');
+});
+
+// ===== 侧边栏切换 =====
+document.querySelectorAll('.side-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    
+    if(item.dataset.view === 'my-files'){
+      currentFileUser = getCurrentUser().username;
+      renderFiles();
+      updateStorageDisplay();
+    }
+  });
+});
+
+// ===== 弹窗关闭 =====
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.getElementById(btn.dataset.close).classList.remove('show');
+  });
+});
+
+// ===== 用户按钮（退出登录） =====
+document.getElementById('user-btn').addEventListener('click',()=>{
+  if(confirm('确定退出登录吗？')){
+    localStorage.removeItem('fd_currentUser');
+    location.href = '../';
+  }
+});
+
+// 启动
+init();
+</script>
+</body>
+</html>
