@@ -598,10 +598,10 @@ function renderFiles(){
           </div>
           <div class="file-size">${formatSize(f.size)}</div>
           <div class="file-date">${date}</div>
-          <div class="file-actions">
+                    <div class="file-actions">
             <button class="file-btn" onclick="downloadFile(${idx})">下载</button>
             ${currentPage==='my-files' && !isAdminViewingOther ? `<button class="file-btn" onclick="shareFile(${idx})">分享</button>` : ''}
-            ${isAdminViewingOther ? `<button class="file-btn danger" onclick="confirmDelete('my',${idx})">删除</button>` : ''}
+            ${currentPage==='my-files' ? `<button class="file-btn danger" onclick="confirmDelete('my',${idx})">删除</button>` : ''}
             ${currentPage==='shared' && isAdmin ? `
               <button class="file-btn top-btn" onclick="toggleTop(${idx})">${f.top?'取消置顶':'置顶'}</button>
               <button class="file-btn danger" onclick="confirmDelete('shared',${idx})">删除</button>
@@ -621,9 +621,10 @@ function renderFiles(){
           <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
           <div class="card-name">${topTag}${f.name}</div>
           <div class="card-meta">${formatSize(f.size)}</div>
-          <div class="card-actions">
+                    <div class="card-actions">
             <button class="card-btn" onclick="downloadFile(${idx})">下载</button>
             ${currentPage==='my-files' && !isAdminViewingOther ? `<button class="card-btn" onclick="shareFile(${idx})">分享</button>` : ''}
+            ${currentPage==='my-files' ? `<button class="card-btn danger" onclick="confirmDelete('my',${idx})">删除</button>` : ''}
           </div>
         </div>
       `;
