@@ -68,6 +68,16 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
 .user-btn:hover{border-color:var(--bg-3)}
 .admin-tag{font-size:11px;color:var(--warning);font-weight:600}
 
+/* ===== 未登录提示 ===== */
+.not-login{
+  height:calc(100vh - 60px);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;color:var(--text-dim);
+}
+.not-login svg{width:72px;height:72px;opacity:.4}
+.not-login h2{font-size:20px;color:var(--text);font-weight:600}
+.not-login p{font-size:14px}
+.not-login .btn-primary{padding:8px 24px;font-size:14px}
+
 /* ===== 主体布局 ===== */
 .app{display:flex;height:calc(100vh - 60px)}
 
@@ -93,6 +103,12 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
   height:52px;border-bottom:1px solid var(--border);padding:0 24px;
   display:flex;align-items:center;justify-content:space-between;
 }
+.toolbar-left{display:flex;align-items:center;gap:12px}
+.btn-upload{
+  padding:6px 14px;background:var(--success);color:#fff;border-radius:6px;font-size:13px;font-weight:500;
+  display:flex;align-items:center;gap:6px;
+}
+.btn-upload:hover{background:var(--success-hover)}
 .breadcrumb{color:var(--text-dim);font-size:13px}
 .view-switch{display:flex;gap:4px}
 .view-btn{
@@ -108,19 +124,21 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
 /* 列表视图 */
 .file-list{display:flex;flex-direction:column;gap:2px}
 .file-header{
-  display:grid;grid-template-columns:1fr 120px 160px 100px;
+  display:grid;grid-template-columns:1fr 120px 160px 140px;
   padding:8px 12px;color:var(--text-dim);font-size:12px;border-bottom:1px solid var(--border);
   position:sticky;top:0;background:var(--bg-0);z-index:10;
 }
 .file-row{
-  display:grid;grid-template-columns:1fr 120px 160px 100px;
+  display:grid;grid-template-columns:1fr 120px 160px 140px;
   align-items:center;padding:10px 12px;border-radius:6px;cursor:default;
   border:1px solid transparent;
 }
 .file-row:hover{background:var(--bg-1);border-color:var(--border)}
+.file-row.top{background:rgba(210,153,34,.08);border-color:var(--warning)}
 .file-name{display:flex;align-items:center;gap:10px}
 .file-icon{width:20px;height:20px;color:var(--accent)}
 .file-size,.file-date{color:var(--text-dim);font-size:13px}
+.file-share-by{font-size:12px;color:var(--text-faint)}
 .file-actions{display:flex;gap:6px;justify-content:flex-end}
 .file-btn{
   padding:4px 10px;border:1px solid var(--border);border-radius:4px;
@@ -128,6 +146,7 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
 }
 .file-btn:hover{color:var(--text);border-color:var(--bg-3)}
 .file-btn.danger:hover{color:#fff;background:var(--danger);border-color:transparent}
+.file-btn.top-btn:hover{color:#fff;background:var(--warning);border-color:transparent}
 
 /* 网格视图 */
 .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
@@ -136,6 +155,7 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
   padding:16px;display:flex;flex-direction:column;gap:10px;
   transition:all .15s;
 }
+.file-card.top{border-color:var(--warning);box-shadow:0 0 0 1px var(--warning)}
 .file-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
 .card-icon{width:40px;height:40px;color:var(--accent);margin:0 auto 4px}
 .card-name{font-size:13px;text-align:center;word-break:break-all;line-height:1.4}
@@ -215,11 +235,17 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
 .storage-overview .num{font-size:20px;font-weight:700;color:var(--text)}
 .storage-overview .label{font-size:12px;color:var(--text-dim);margin-top:2px}
 
+/* 置顶标记 */
+.top-tag{
+  display:inline-block;padding:1px 6px;background:var(--warning);color:#000;
+  font-size:10px;border-radius:3px;font-weight:600;margin-right:6px;vertical-align:middle;
+}
+
 /* 响应式 */
 @media (max-width:768px){
   .sidebar{width:60px;padding:16px 0}
   .side-item span{display:none}
-  .file-header,.file-row{grid-template-columns:1fr 80px 100px 80px}
+  .file-header,.file-row{grid-template-columns:1fr 80px 100px 120px}
   .storage-box .storage-text span{display:none}
 }
 </style>
@@ -232,7 +258,7 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
     <div class="logo">Fuo <span>Drive</span></div>
     <a href="../" class="back-home">← 返回主页</a>
   </div>
-  <div class="nav-right">
+  <div class="nav-right" id="nav-right" style="display:none">
     <div class="storage-box" title="存储空间使用情况">
       <div class="storage-bar"><div class="storage-bar-inner" id="storage-bar"></div></div>
       <div class="storage-text"><b id="storage-used">0 MB</b> / <span id="storage-total">2 GB</span></div>
@@ -245,13 +271,31 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
   </div>
 </nav>
 
+<!-- ===== 未登录提示 ===== -->
+<div class="not-login" id="not-login" style="display:none">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M12 11V7a4 4 0 1 0-8 0v4"></path>
+    <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+  </svg>
+  <h2>您未登录，无法使用网盘哦~</h2>
+  <p>请先返回主页登录账号</p>
+  <a href="../" class="btn-primary" style="padding:8px 24px;border-radius:6px;text-decoration:none">去登录</a>
+</div>
+
 <!-- ===== 主体 ===== -->
-<div class="app">
+<div class="app" id="app" style="display:none">
   <!-- 侧边栏 -->
   <aside class="sidebar">
     <div class="side-item active" data-view="my-files">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
       <span>我的文件</span>
+    </div>
+    <div class="side-item" data-view="shared">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+      <span>分享空间</span>
     </div>
 
     <div class="side-divider"></div>
@@ -265,7 +309,13 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
   <!-- 主内容 -->
   <main class="main">
     <div class="toolbar">
-      <div class="breadcrumb" id="breadcrumb">全部文件</div>
+      <div class="toolbar-left">
+        <button class="btn-upload" id="btn-upload" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          上传文件
+        </button>
+        <div class="breadcrumb" id="breadcrumb">全部文件</div>
+      </div>
       <div class="view-switch">
         <button class="view-btn active" data-view="list" title="列表视图">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
@@ -281,6 +331,9 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
     </div>
   </main>
 </div>
+
+<!-- 隐藏的文件选择器 -->
+<input type="file" id="file-input" style="display:none" multiple>
 
 <!-- ===== 拓展额度弹窗 ===== -->
 <div class="modal" id="modal-extend">
@@ -363,6 +416,22 @@ button{font-family:inherit;background:none;border:none;color:inherit;cursor:poin
   </div>
 </div>
 
+<!-- ===== 分享成功弹窗 ===== -->
+<div class="modal" id="modal-share-ok">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>分享成功</span>
+      <span class="modal-close" data-close="modal-share-ok">×</span>
+    </div>
+    <div class="modal-body">
+      <p>文件已分享到「分享空间」，所有用户均可查看下载。</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" data-close="modal-share-ok">好的</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== 工具函数 =====
 function formatSize(bytes){
@@ -392,29 +461,44 @@ function initUserQuota(username){
 function initUserFiles(username){
   const key = 'fd_files_' + username;
   if(!localStorage.getItem(key)){
-    // 示例文件
     const demoFiles = [
-      {name:'欢迎使用 Fuo Drive.txt', size:128, type:'text', date:Date.now(), url:'#'},
+      {name:'欢迎使用 Fuo Drive.txt', size:128, type:'text', date:Date.now(), content:'欢迎使用 Fuo Drive 私人网盘！\n\n上传你的文件开始使用吧。'},
     ];
     localStorage.setItem(key, JSON.stringify(demoFiles));
   }
   return JSON.parse(localStorage.getItem(key));
 }
 
+// 初始化分享文件
+function initSharedFiles(){
+  if(!localStorage.getItem('fd_sharedFiles')){
+    localStorage.setItem('fd_sharedFiles', JSON.stringify([]));
+  }
+  return JSON.parse(localStorage.getItem('fd_sharedFiles'));
+}
+
 // ===== 全局变量 =====
 let currentView = 'list'; // list / grid
+let currentPage = 'my-files'; // my-files / shared
 let currentFileUser = null; // 当前查看的用户（管理员切换用）
-let deleteTarget = null; // 待删除文件
+let deleteTarget = null; // 待删除文件 {type:'my'/'shared', index}
 let quotaTarget = null; // 待修改配额用户
 
 // ===== 初始化 =====
 function init(){
   const user = getCurrentUser();
+  
+  // 未登录：显示提示
   if(!user){
-    alert('请先登录账号');
-    location.href = '../';
+    document.getElementById('not-login').style.display = 'flex';
     return;
   }
+
+  // 已登录：显示主界面
+  document.getElementById('not-login').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('nav-right').style.display = 'flex';
+  document.getElementById('btn-upload').style.display = 'flex';
 
   currentFileUser = user.username;
   
@@ -426,9 +510,10 @@ function init(){
     document.getElementById('admin-panel-btn').style.display = 'flex';
   }
 
-  // 初始化配额和文件
+  // 初始化数据
   initUserQuota(user.username);
   initUserFiles(user.username);
+  initSharedFiles();
 
   // 渲染存储信息
   updateStorageDisplay();
@@ -454,7 +539,6 @@ function updateStorageDisplay(){
   document.getElementById('storage-total').textContent = formatSize(total);
   document.getElementById('storage-bar').style.width = percent + '%';
 
-  // 超量变红
   if(percent >= 90){
     document.getElementById('storage-bar').style.background = 'var(--danger)';
   }else if(percent >= 70){
@@ -466,16 +550,28 @@ function updateStorageDisplay(){
 
 // ===== 渲染文件列表 =====
 function renderFiles(){
-  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
   const container = document.getElementById('file-container');
   const user = getCurrentUser();
-  const isAdmin = user && user.isAdmin && currentFileUser !== user.username;
+  const isAdmin = user && user.isAdmin;
+  let files = [];
+  let isAdminViewingOther = isAdmin && currentPage === 'my-files' && currentFileUser !== user.username;
+
+  if(currentPage === 'shared'){
+    files = initSharedFiles().sort((a,b)=>{
+      if(a.top && !b.top) return -1;
+      if(!a.top && b.top) return 1;
+      return b.shareTime - a.shareTime;
+    });
+  }else{
+    files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+  }
 
   if(files.length === 0){
+    const tip = currentPage === 'shared' ? '暂无分享的文件' : '暂无文件，点击上方按钮上传';
     container.innerHTML = `
       <div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        <p>暂无文件</p>
+        <p>${tip}</p>
       </div>
     `;
     return;
@@ -483,22 +579,33 @@ function renderFiles(){
 
   if(currentView === 'list'){
     let html = `<div class="file-header">
-      <div>文件名</div><div>大小</div><div>修改时间</div><div>操作</div>
+      <div>文件名</div><div>大小</div><div>${currentPage==='shared'?'分享时间':'修改时间'}</div><div>操作</div>
     </div><div class="file-list">`;
     
     files.forEach((f,idx)=>{
-      const date = new Date(f.date).toLocaleString('zh-CN');
+      const date = new Date(currentPage==='shared' ? f.shareTime : f.date).toLocaleString('zh-CN');
+      const topTag = f.top ? '<span class="top-tag">置顶</span>' : '';
+      const shareBy = currentPage==='shared' ? `<div class="file-share-by">分享者：${f.shareBy}</div>` : '';
+      
       html += `
-        <div class="file-row">
+        <div class="file-row ${f.top?'top':''}">
           <div class="file-name">
             <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            <span>${f.name}</span>
+            <div>
+              <div>${topTag}${f.name}</div>
+              ${shareBy}
+            </div>
           </div>
           <div class="file-size">${formatSize(f.size)}</div>
           <div class="file-date">${date}</div>
           <div class="file-actions">
             <button class="file-btn" onclick="downloadFile(${idx})">下载</button>
-            ${isAdmin ? `<button class="file-btn danger" onclick="confirmDelete(${idx})">删除</button>` : ''}
+            ${currentPage==='my-files' && !isAdminViewingOther ? `<button class="file-btn" onclick="shareFile(${idx})">分享</button>` : ''}
+            ${isAdminViewingOther ? `<button class="file-btn danger" onclick="confirmDelete('my',${idx})">删除</button>` : ''}
+            ${currentPage==='shared' && isAdmin ? `
+              <button class="file-btn top-btn" onclick="toggleTop(${idx})">${f.top?'取消置顶':'置顶'}</button>
+              <button class="file-btn danger" onclick="confirmDelete('shared',${idx})">删除</button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -508,14 +615,15 @@ function renderFiles(){
   }else{
     let html = '<div class="file-grid">';
     files.forEach((f,idx)=>{
+      const topTag = f.top ? '<span class="top-tag">置顶</span>' : '';
       html += `
-        <div class="file-card">
+        <div class="file-card ${f.top?'top':''}">
           <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          <div class="card-name">${f.name}</div>
+          <div class="card-name">${topTag}${f.name}</div>
           <div class="card-meta">${formatSize(f.size)}</div>
           <div class="card-actions">
             <button class="card-btn" onclick="downloadFile(${idx})">下载</button>
-            ${isAdmin ? `<button class="card-btn danger" onclick="confirmDelete(${idx})">删除</button>` : ''}
+            ${currentPage==='my-files' && !isAdminViewingOther ? `<button class="card-btn" onclick="shareFile(${idx})">分享</button>` : ''}
           </div>
         </div>
       `;
@@ -525,46 +633,153 @@ function renderFiles(){
   }
 
   // 更新面包屑
-  const user = getCurrentUser();
-  if(user.isAdmin && currentFileUser !== user.username){
+  if(currentPage === 'shared'){
+    document.getElementById('breadcrumb').textContent = '分享空间';
+  }else if(isAdminViewingOther){
     document.getElementById('breadcrumb').textContent = `用户文件 / ${currentFileUser}`;
   }else{
     document.getElementById('breadcrumb').textContent = '全部文件';
   }
 }
 
+// ===== 上传文件 =====
+document.getElementById('btn-upload').addEventListener('click',()=>{
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change',function(e){
+  const files = e.target.files;
+  if(!files.length) return;
+  
+  const user = getCurrentUser();
+  const userFiles = JSON.parse(localStorage.getItem('fd_files_'+user.username)||'[]');
+  const quotas = JSON.parse(localStorage.getItem('fd_quotas')||'{}');
+  const quota = quotas[user.username] || 2*1024*1024*1024;
+  const used = userFiles.reduce((sum,f)=>sum+f.size,0);
+
+  let successCount = 0;
+  let overQuota = false;
+
+  Array.from(files).forEach(file=>{
+    if(used + file.size > quota){
+      overQuota = true;
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      userFiles.push({
+        name: file.name,
+        size: file.size,
+        type: file.type || 'application/octet-stream',
+        date: Date.now(),
+        content: ev.target.result
+      });
+      localStorage.setItem('fd_files_'+user.username, JSON.stringify(userFiles));
+      successCount++;
+      renderFiles();
+      updateStorageDisplay();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  if(overQuota){
+    alert('存储空间不足，部分文件上传失败，请联系管理员拓展额度');
+  }
+
+  this.value = '';
+});
+
 // ===== 下载文件 =====
 function downloadFile(index){
-  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
-  const file = files[index];
-  if(!file) return;
-  
-  if(file.url === '#'){
-    alert('这是示例文件，添加真实文件地址后即可下载');
-    return;
+  let files;
+  if(currentPage === 'shared'){
+    files = initSharedFiles();
+  }else{
+    files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
   }
   
+  const file = files[index];
+  if(!file) return;
+
   const a = document.createElement('a');
-  a.href = file.url;
+  a.href = file.content;
   a.download = file.name;
   a.click();
 }
 
+// ===== 分享文件 =====
+function shareFile(index){
+  const user = getCurrentUser();
+  const files = JSON.parse(localStorage.getItem('fd_files_'+user.username)||'[]');
+  const file = files[index];
+  if(!file) return;
+
+  const shared = initSharedFiles();
+  // 避免重复分享
+  if(shared.find(s=>s.name===file.name && s.shareBy===user.username)){
+    alert('该文件已分享过');
+    return;
+  }
+
+  shared.push({
+    id: Date.now(),
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    content: file.content,
+    shareBy: user.username,
+    shareTime: Date.now(),
+    top: false
+  });
+
+  localStorage.setItem('fd_sharedFiles', JSON.stringify(shared));
+  document.getElementById('modal-share-ok').classList.add('show');
+}
+
+// ===== 置顶切换（管理员） =====
+function toggleTop(index){
+  const user = getCurrentUser();
+  if(!user || !user.isAdmin) return;
+  
+  const shared = initSharedFiles();
+  shared[index].top = !shared[index].top;
+  localStorage.setItem('fd_sharedFiles', JSON.stringify(shared));
+  renderFiles();
+}
+
 // ===== 删除确认 =====
-function confirmDelete(index){
-  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
-  deleteTarget = index;
-  document.getElementById('delete-filename').textContent = files[index].name;
+function confirmDelete(type, index){
+  deleteTarget = {type, index};
+  let filename = '';
+  
+  if(type === 'shared'){
+    filename = initSharedFiles()[index].name;
+  }else{
+    filename = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]')[index].name;
+  }
+  
+  document.getElementById('delete-filename').textContent = filename;
   document.getElementById('modal-delete').classList.add('show');
 }
 
 document.getElementById('btn-delete-confirm').addEventListener('click',()=>{
-  const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
-  files.splice(deleteTarget, 1);
-  localStorage.setItem('fd_files_'+currentFileUser, JSON.stringify(files));
+  if(!deleteTarget) return;
+  
+  if(deleteTarget.type === 'shared'){
+    const shared = initSharedFiles();
+    shared.splice(deleteTarget.index, 1);
+    localStorage.setItem('fd_sharedFiles', JSON.stringify(shared));
+  }else{
+    const files = JSON.parse(localStorage.getItem('fd_files_'+currentFileUser)||'[]');
+    files.splice(deleteTarget.index, 1);
+    localStorage.setItem('fd_files_'+currentFileUser, JSON.stringify(files));
+    updateStorageDisplay();
+  }
+  
   document.getElementById('modal-delete').classList.remove('show');
+  deleteTarget = null;
   renderFiles();
-  updateStorageDisplay();
 });
 
 // ===== 视图切换 =====
@@ -573,6 +788,26 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     currentView = btn.dataset.view;
+    renderFiles();
+  });
+});
+
+// ===== 侧边栏切换 =====
+document.querySelectorAll('.side-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    
+    const view = item.dataset.view;
+    currentPage = view;
+    
+    if(view === 'my-files'){
+      currentFileUser = getCurrentUser().username;
+      document.getElementById('btn-upload').style.display = 'flex';
+    }else{
+      document.getElementById('btn-upload').style.display = 'none';
+    }
+    
     renderFiles();
   });
 });
@@ -624,7 +859,11 @@ function renderAdminPanel(){
 // 管理员查看用户文件
 function viewUserFiles(username){
   currentFileUser = username;
+  currentPage = 'my-files';
+  document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
+  document.querySelector('[data-view="my-files"]').classList.add('active');
   document.getElementById('modal-admin').classList.remove('show');
+  document.getElementById('btn-upload').style.display = 'none';
   initUserFiles(username);
   renderFiles();
   updateStorageDisplay();
@@ -654,20 +893,6 @@ document.getElementById('btn-quota-confirm').addEventListener('click',()=>{
   alert('配额修改成功');
 });
 
-// ===== 侧边栏切换 =====
-document.querySelectorAll('.side-item').forEach(item=>{
-  item.addEventListener('click',()=>{
-    document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
-    item.classList.add('active');
-    
-    if(item.dataset.view === 'my-files'){
-      currentFileUser = getCurrentUser().username;
-      renderFiles();
-      updateStorageDisplay();
-    }
-  });
-});
-
 // ===== 弹窗关闭 =====
 document.querySelectorAll('[data-close]').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -679,7 +904,7 @@ document.querySelectorAll('[data-close]').forEach(btn=>{
 document.getElementById('user-btn').addEventListener('click',()=>{
   if(confirm('确定退出登录吗？')){
     localStorage.removeItem('fd_currentUser');
-    location.href = '../';
+    location.reload();
   }
 });
 
